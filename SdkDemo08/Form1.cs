@@ -965,11 +965,13 @@ namespace SdkDemo08
             this.Connection.Enabled = false;
             this.DisConnection.Enabled = true;
 
-            this.btnStartCap.Enabled = true;
-            this.btnStopCap.Enabled = false;
-            
+            // Configurar botones según el modo seleccionado
             if (Common.canLive && this.radioBtnLive.Checked)
             {
+                // Modo Live: Solo preview, no captura
+                this.btnStartCap.Enabled = false;
+                this.btnStopCap.Enabled = false;
+                
                 this.btnBurstOnOff.Enabled     = true;
                 this.btnBurstStartEnd.Enabled  = false;
                 this.textBoxBurstStart.Enabled = false;
@@ -977,6 +979,42 @@ namespace SdkDemo08
                 this.btnBurstPatch.Enabled     = false;
                 this.textBoxBurstPatch.Enabled = false;
                 this.btnBurstCapture.Enabled   = false;
+                
+                // Iniciar automáticamente el preview en modo Live
+                quit = false;
+                hasquit = false;
+                
+                // Verificar que rawArray tenga el tamaño correcto para la resolución actual
+                // Usar el tamaño máximo para asegurar que sea suficiente
+                if (rawArray == null || rawArray.Length < (Common.camMaxImageWidth * Common.camMaxImageHeight * 4))
+                {
+                    Console.WriteLine("Redimensionando rawArray: tamaño actual={0}, tamaño máximo={1}", 
+                        rawArray != null ? rawArray.Length : 0, Common.camMaxImageWidth * Common.camMaxImageHeight * 4);
+                    rawArray = new byte[Common.camMaxImageWidth * Common.camMaxImageHeight * 4];
+                }
+                
+                uint beginResult = ASCOM.QHYCCD.libqhyccd.BeginQHYCCDLive(Common.camHandle);
+                Console.WriteLine("BeginQHYCCDLive retornó: {0}", beginResult);
+                
+                if (beginResult == 0)
+                {
+                    // Pequeño delay para que la cámara inicie el modo Live
+                    System.Threading.Thread.Sleep(100);
+                    
+                    threadShowLiveImage = new Thread(new ParameterizedThreadStart(ShowLiveImage));
+                    threadShowLiveImage.Start();
+                    Console.WriteLine("Modo Live iniciado automáticamente después de conectar");
+                }
+                else
+                {
+                    Console.WriteLine("Error al iniciar modo Live: BeginQHYCCDLive retornó {0}", beginResult);
+                }
+            }
+            else
+            {
+                // Modo Single: Permitir capturas
+                this.btnStartCap.Enabled = true;
+                this.btnStopCap.Enabled = false;
             }
 
             this.label1.Enabled = true;
@@ -1003,7 +1041,30 @@ namespace SdkDemo08
         private void DisConnection_Click(object sender, EventArgs e)
         {
             int ret = -1;
-            if (this.radioBtnSingle.Checked)
+            
+            // Detener cualquier captura o preview activo
+            quit = true;
+            while (hasquit != true)
+            {
+                Application.DoEvents();
+            }
+            
+            // Detener threads de imagen
+            if (threadShowLiveImage != null && threadShowLiveImage.IsAlive)
+            {
+                threadShowLiveImage.Abort();
+            }
+            if (threadShowSingleImage != null && threadShowSingleImage.IsAlive)
+            {
+                threadShowSingleImage.Abort();
+            }
+            
+            // Detener modo Live si está activo
+            if (Common.canLive && this.radioBtnLive.Checked)
+            {
+                ret = ASCOM.QHYCCD.libqhyccd.StopQHYCCDLive(Common.camHandle);
+            }
+            else if (this.radioBtnSingle.Checked)
             {
                 ret = ASCOM.QHYCCD.libqhyccd.CancelQHYCCDExposingAndReadout(Common.camHandle);
             }
@@ -1330,73 +1391,19 @@ namespace SdkDemo08
         {
             Console.WriteLine("Start Capture.***********************************************");
 
+            // El modo Live no permite capturas, solo preview
+            // El botón Start Capture debe estar deshabilitado en modo Live
+            if (this.radioBtnLive.Checked == true)
+            {
+                Console.WriteLine("Start Capture no está disponible en modo Live (solo preview)");
+                return;
+            }
+
             quit = false;
             hasquit = false;
 
-            if (this.radioBtnLive.Checked == true)
-            {
-                if (Common.canLive == true)
-                {
-                    this.btnStartCap.Enabled = false;
-                    this.btnStopCap.Enabled = true;
-                    
-                    // Deshabilitar los radio buttons durante la captura
-                    this.radioBtnLive.Enabled = false;
-                    this.radioBtnSingle.Enabled = false;
-
-                    // Crear carpeta de sesión para Live mode
-                    if (string.IsNullOrEmpty(saveFolderPath))
-                    {
-                        MessageBox.Show("Por favor seleccione una carpeta de guardado antes de iniciar la captura.", 
-                            "Carpeta no seleccionada", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                        this.btnStartCap.Enabled = true;
-                        this.btnStopCap.Enabled = false;
-                        // Los radio buttons permanecen habilitados en caso de error
-                        return;
-                    }
-
-                    liveSessionStartTime = DateTime.UtcNow;
-                    liveFrameCounter = 0;
-                    string sessionFolderName = "Live_" + liveSessionStartTime.ToString("yyyyMMdd_HHmmss");
-                    currentLiveSessionFolder = Path.Combine(saveFolderPath, sessionFolderName);
-                    
-                    try
-                    {
-                        if (!Directory.Exists(currentLiveSessionFolder))
-                        {
-                            Directory.CreateDirectory(currentLiveSessionFolder);
-                            Console.WriteLine("Carpeta de sesión creada: {0}", currentLiveSessionFolder);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show("Error al crear carpeta de sesión: " + ex.Message, 
-                            "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                        this.btnStartCap.Enabled = true;
-                        this.btnStopCap.Enabled = false;
-                        // Los radio buttons permanecen habilitados en caso de error
-                        return;
-                    }
-
-                    ASCOM.QHYCCD.libqhyccd.BeginQHYCCDLive(Common.camHandle);
-                
-                    threadShowLiveImage = new Thread(new ParameterizedThreadStart(ShowLiveImage));
-                    threadShowLiveImage.Start();
-                }
-                else
-                {
-                    this.btnStartCap.Enabled = false;
-                    this.btnStopCap.Enabled = true;
-                    
-                    // Deshabilitar los radio buttons durante la captura
-                    this.radioBtnLive.Enabled = false;
-                    this.radioBtnSingle.Enabled = false;
-
-                    threadShowSingleImage = new Thread(new ParameterizedThreadStart(ShowSingleImage));
-                    threadShowSingleImage.Start();
-                }
-            }
-            else
+            // Solo modo Single puede usar Start Capture
+            if (this.radioBtnSingle.Checked == true)
             {
                 // Verificar carpeta de guardado para modo Single
                 if (string.IsNullOrEmpty(saveFolderPath))
@@ -1638,6 +1645,23 @@ namespace SdkDemo08
         }
 
         delegate void SetTextCallBack(UnmanagedMemoryStream str);
+        delegate void UpdatePictureBoxCallBack(Bitmap bmp);
+        
+        private void UpdatePictureBox(Bitmap bmp)
+        {
+            if (this.pictureBox1 != null && bmp != null)
+            {
+                // Liberar la imagen anterior si existe
+                if (this.pictureBox1.Image != null)
+                {
+                    var oldImage = this.pictureBox1.Image;
+                    this.pictureBox1.Image = null;
+                    oldImage.Dispose();
+                }
+                this.pictureBox1.Image = bmp;
+            }
+        }
+        
         private void SetText(UnmanagedMemoryStream str)
         {
             var br = new BinaryReader(str);
@@ -1720,19 +1744,49 @@ namespace SdkDemo08
 
         unsafe void ShowLiveImage(object obj)
         {
+            Console.WriteLine("ShowLiveImage thread iniciado");
+            int frameAttempts = 0;
+            int lastError = 0;
+            
             while (quit != true)
             {
                  //Console.WriteLine("START : {0} {1} {2}", DateTime.UtcNow.Minute, DateTime.UtcNow.Second, DateTime.UtcNow.Millisecond);
                 retVal = -1;
+                frameAttempts = 0;
                 while (retVal != 0 && quit != true)
                 {
                     retVal = ASCOM.QHYCCD.libqhyccd.C_GetQHYCCDLiveFrame(Common.camHandle, ref Common.camCurImgWidth, ref Common.camCurImgHeight, ref Common.camCurImgBits, ref Common.camCurImgChannels, rawArray);
+                    frameAttempts++;
+                    
+                    if (retVal != 0 && frameAttempts % 100 == 0)
+                    {
+                        lastError = retVal;
+                        Console.WriteLine("GetQHYCCDLiveFrame intento {0}, retVal={1}, w={2}, h={3}, bpp={4}, ch={5}", 
+                            frameAttempts, retVal, Common.camCurImgWidth, Common.camCurImgHeight, Common.camCurImgBits, Common.camCurImgChannels);
+                    }
+                    
+                    if (retVal != 0)
+                    {
+                        System.Threading.Thread.Sleep(10); // Pequeño delay entre intentos
+                    }
+                    
                     Application.DoEvents();
                 }
 
                 if (retVal == 0)
                 {
-                    Console.WriteLine("END   : {0} {1} {2}", DateTime.UtcNow.Minute, DateTime.UtcNow.Second, DateTime.UtcNow.Millisecond);
+                    Console.WriteLine("Live Frame obtenido: w={0} h={1} bpp={2} ch={3}", 
+                        Common.camCurImgWidth, Common.camCurImgHeight, Common.camCurImgBits, Common.camCurImgChannels);
+                    
+                    // Validar que las dimensiones sean válidas
+                    if (Common.camCurImgWidth == 0 || Common.camCurImgHeight == 0 || 
+                        Common.camCurImgWidth > Common.camMaxImageWidth || 
+                        Common.camCurImgHeight > Common.camMaxImageHeight)
+                    {
+                        Console.WriteLine("Dimensiones inválidas del frame, saltando...");
+                        continue;
+                    }
+                    
                     if(Common.burstOnOff && Common.burstCap)
                     {
                         Common.burstCapNum++;
@@ -1742,8 +1796,12 @@ namespace SdkDemo08
                             Common.burstCap = false;
                     }
 
-                    if (this.btnGPSOnOff.Text == "OFF")
+                    // Calcular offset para GPS si está activo
+                    int gpsOffset = 0;
+                    if (this.btnGPSOnOff != null && this.btnGPSOnOff.Text == "OFF")
                     {
+                        gpsOffset = 44; // Los primeros 44 bytes son metadata GPS
+                        
                         IntPtr buffer = Marshal.AllocHGlobal(44);
                         Marshal.Copy(rawArray, 0, buffer, 44);
 
@@ -1756,13 +1814,14 @@ namespace SdkDemo08
                         this.Invoke(deg, new object[] { str });
                     }
 
-                    bitmap = new Bitmap((int)Common.camCurImgWidth, (int)Common.camCurImgHeight);
+                    // Crear bitmap con formato ARGB32 explícito para mejor compatibilidad
+                    bitmap = new Bitmap((int)Common.camCurImgWidth, (int)Common.camCurImgHeight, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
                     rectangle = new Rectangle(0, 0, (int)Common.camCurImgWidth, (int)Common.camCurImgHeight);
-                    bmpData = bitmap.LockBits(rectangle, ImageLockMode.ReadWrite, bitmap.PixelFormat);
+                    bmpData = bitmap.LockBits(rectangle, ImageLockMode.ReadWrite, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
                     ptr = bmpData.Scan0;
 
                     s = 0;
-                    index = 0;
+                    index = gpsOffset; // Iniciar desde el offset GPS si está activo
                     pixData = 0;
                     rgbArray = new Byte[Common.camCurImgWidth * Common.camCurImgHeight * 4];
                     for (int i = 0; i < Common.camCurImgHeight; i++)
@@ -1814,14 +1873,32 @@ namespace SdkDemo08
 
                     Marshal.Copy(rgbArray, 0, ptr, (int)(Common.camCurImgWidth * Common.camCurImgHeight * 4));
                     bitmap.UnlockBits(bmpData);
-                    pictureBox1.Image = bitmap;
+                    
+                    // Actualizar pictureBox desde el thread principal usando Invoke
+                    if (this.InvokeRequired)
+                    {
+                        UpdatePictureBoxCallBack updateCallback = new UpdatePictureBoxCallBack(UpdatePictureBox);
+                        this.Invoke(updateCallback, new object[] { bitmap });
+                        Console.WriteLine("PictureBox actualizado desde thread secundario");
+                    }
+                    else
+                    {
+                        UpdatePictureBox(bitmap);
+                        Console.WriteLine("PictureBox actualizado desde thread principal");
+                    }
 
-                    // Guardar automáticamente cada frame en formato FITS
-                    SaveImageToFITS(rawArray, Common.camCurImgWidth, Common.camCurImgHeight, 
-                        Common.camCurImgBits, Common.camCurImgChannels, "LIVE", liveFrameCounter);
-                    liveFrameCounter++;
+                    // Modo Live: Solo preview, no se guardan archivos
+                    // (El guardado de archivos se ha eliminado para modo preview)
 
                     GC.Collect();
+                    
+                    // Pequeño delay para no saturar el sistema y permitir que la UI se actualice
+                    System.Threading.Thread.Sleep(50);
+                }
+                else if (quit == false && retVal != 0)
+                {
+                    // Si no se obtuvo frame pero no se debe salir, esperar un poco más
+                    System.Threading.Thread.Sleep(100);
                 }
             }
 
@@ -2043,7 +2120,14 @@ namespace SdkDemo08
         /// <returns>true si está capturando, false en caso contrario</returns>
         private bool IsCapturing()
         {
-            // Si btnStopCap está habilitado, significa que está capturando
+            // En modo Live no hay captura (solo preview), así que no se considera "capturando"
+            // Solo modo Single puede estar capturando
+            if (this.radioBtnLive.Checked && Common.canLive)
+            {
+                return false; // Modo Live no está "capturando", solo haciendo preview
+            }
+            
+            // Si btnStopCap está habilitado, significa que está capturando (solo en modo Single)
             return this.btnStopCap.Enabled == true;
         }
 
@@ -2149,6 +2233,48 @@ namespace SdkDemo08
 
             quit = false;
             hasquit = false;
+
+            // Si se cambió a modo Live, iniciar automáticamente el preview
+            if (newMode == 1 && Common.canLive)
+            {
+                // Verificar que rawArray tenga el tamaño correcto (usar tamaño máximo)
+                if (rawArray == null || rawArray.Length < (Common.camMaxImageWidth * Common.camMaxImageHeight * 4))
+                {
+                    Console.WriteLine("Redimensionando rawArray en ChangeCaptureMode: tamaño actual={0}, tamaño máximo={1}", 
+                        rawArray != null ? rawArray.Length : 0, Common.camMaxImageWidth * Common.camMaxImageHeight * 4);
+                    rawArray = new byte[Common.camMaxImageWidth * Common.camMaxImageHeight * 4];
+                }
+                
+                // Iniciar modo Live para preview
+                uint beginResult = ASCOM.QHYCCD.libqhyccd.BeginQHYCCDLive(Common.camHandle);
+                Console.WriteLine("BeginQHYCCDLive en ChangeCaptureMode retornó: {0}", beginResult);
+                
+                if (beginResult == 0)
+                {
+                    // Pequeño delay para que la cámara inicie el modo Live
+                    System.Threading.Thread.Sleep(100);
+                    
+                    // Iniciar thread para mostrar el preview
+                    threadShowLiveImage = new Thread(new ParameterizedThreadStart(ShowLiveImage));
+                    threadShowLiveImage.Start();
+                    
+                    // Deshabilitar botón Start Capture en modo Live (solo preview, no captura)
+                    this.btnStartCap.Enabled = false;
+                    this.btnStopCap.Enabled = false;
+                    
+                    Console.WriteLine("Modo Live iniciado automáticamente para preview");
+                }
+                else
+                {
+                    Console.WriteLine("Error al iniciar modo Live en ChangeCaptureMode: BeginQHYCCDLive retornó {0}", beginResult);
+                }
+            }
+            else if (newMode == 0)
+            {
+                // Si se cambió a modo Single, habilitar botón Start Capture
+                this.btnStartCap.Enabled = true;
+                this.btnStopCap.Enabled = false;
+            }
 
             Console.WriteLine("Modo de captura cambiado exitosamente a: {0}", newMode == 0 ? "Single" : "Live");
         }
