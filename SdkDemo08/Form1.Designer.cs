@@ -31,6 +31,36 @@
             this.folderBrowserDialog = new System.Windows.Forms.FolderBrowserDialog();
             this.Connection = new System.Windows.Forms.Button();
             this.DisConnection = new System.Windows.Forms.Button();
+            
+            // Inicializar controles multi-cámara
+            this.labelCameraSelect = new System.Windows.Forms.Label();
+            this.comBoxCameraSelect = new System.Windows.Forms.ComboBox();
+            this.btnCamera1 = new System.Windows.Forms.Button();
+            this.btnCamera2 = new System.Windows.Forms.Button();
+            this.btnCamera3 = new System.Windows.Forms.Button();
+            this.btnCamera4 = new System.Windows.Forms.Button();
+            this.groupBoxMasterCapture = new System.Windows.Forms.GroupBox();
+            this.checkBoxCamera1 = new System.Windows.Forms.CheckBox();
+            this.checkBoxCamera2 = new System.Windows.Forms.CheckBox();
+            this.checkBoxCamera3 = new System.Windows.Forms.CheckBox();
+            this.checkBoxCamera4 = new System.Windows.Forms.CheckBox();
+            this.pictureBoxCamera1Status = new System.Windows.Forms.PictureBox();
+            this.pictureBoxCamera2Status = new System.Windows.Forms.PictureBox();
+            this.pictureBoxCamera3Status = new System.Windows.Forms.PictureBox();
+            this.pictureBoxCamera4Status = new System.Windows.Forms.PictureBox();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBoxCamera1Status)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBoxCamera2Status)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBoxCamera3Status)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBoxCamera4Status)).BeginInit();
+            this.labelCamera1Name = new System.Windows.Forms.Label();
+            this.labelCamera1ID = new System.Windows.Forms.Label();
+            this.labelCamera2Name = new System.Windows.Forms.Label();
+            this.labelCamera2ID = new System.Windows.Forms.Label();
+            this.labelCamera3Name = new System.Windows.Forms.Label();
+            this.labelCamera3ID = new System.Windows.Forms.Label();
+            this.labelCamera4Name = new System.Windows.Forms.Label();
+            this.labelCamera4ID = new System.Windows.Forms.Label();
+            this.btnMasterCapture = new System.Windows.Forms.Button();
             this.textBoxExp = new System.Windows.Forms.TextBox();
             this.testBoxGain = new System.Windows.Forms.TextBox();
             this.textBoxOffset = new System.Windows.Forms.TextBox();
@@ -208,6 +238,10 @@
             ((System.ComponentModel.ISupportInitialize)(this.trackBarExpTime)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.trackBarTarget)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.trackBarTS)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBoxCamera1Status)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBoxCamera2Status)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBoxCamera3Status)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBoxCamera4Status)).BeginInit();
             this.groupBox2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trackBarUSBTraffic)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.trackBarOffset)).BeginInit();
@@ -1312,6 +1346,288 @@
             this.panelConnect.Size = new System.Drawing.Size(247, 54);
             this.panelConnect.TabIndex = 25;
             // 
+            // labelCameraSelect
+            // 
+            this.labelCameraSelect = new System.Windows.Forms.Label();
+            this.labelCameraSelect.AutoSize = true;
+            this.labelCameraSelect.Location = new System.Drawing.Point(4, 95);
+            this.labelCameraSelect.Name = "labelCameraSelect";
+            this.labelCameraSelect.Size = new System.Drawing.Size(95, 12);
+            this.labelCameraSelect.TabIndex = 31;
+            this.labelCameraSelect.Text = "Seleccionar Cámara:";
+            // 
+            // comBoxCameraSelect
+            // 
+            this.comBoxCameraSelect = new System.Windows.Forms.ComboBox();
+            this.comBoxCameraSelect.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.comBoxCameraSelect.FormattingEnabled = true;
+            this.comBoxCameraSelect.Items.AddRange(new object[] {
+            "Cámara 1",
+            "Cámara 2",
+            "Cámara 3",
+            "Cámara 4"});
+            this.comBoxCameraSelect.Location = new System.Drawing.Point(105, 92);
+            this.comBoxCameraSelect.Name = "comBoxCameraSelect";
+            this.comBoxCameraSelect.Size = new System.Drawing.Size(142, 20);
+            this.comBoxCameraSelect.TabIndex = 32;
+            this.comBoxCameraSelect.SelectedIndex = 0;
+            this.comBoxCameraSelect.SelectedIndexChanged += new System.EventHandler(this.comBoxCameraSelect_SelectedIndexChanged);
+            // 
+            // btnCamera1
+            // 
+            this.btnCamera1 = new System.Windows.Forms.Button();
+            this.btnCamera1.Location = new System.Drawing.Point(4, 118);
+            this.btnCamera1.Name = "btnCamera1";
+            this.btnCamera1.Size = new System.Drawing.Size(58, 23);
+            this.btnCamera1.TabIndex = 33;
+            this.btnCamera1.Text = "Cámara 1";
+            this.btnCamera1.UseVisualStyleBackColor = true;
+            this.btnCamera1.Click += new System.EventHandler(this.btnCamera1_Click);
+            // 
+            // btnCamera2
+            // 
+            this.btnCamera2 = new System.Windows.Forms.Button();
+            this.btnCamera2.Location = new System.Drawing.Point(68, 118);
+            this.btnCamera2.Name = "btnCamera2";
+            this.btnCamera2.Size = new System.Drawing.Size(58, 23);
+            this.btnCamera2.TabIndex = 34;
+            this.btnCamera2.Text = "Cámara 2";
+            this.btnCamera2.UseVisualStyleBackColor = true;
+            this.btnCamera2.Click += new System.EventHandler(this.btnCamera2_Click);
+            // 
+            // btnCamera3
+            // 
+            this.btnCamera3 = new System.Windows.Forms.Button();
+            this.btnCamera3.Location = new System.Drawing.Point(132, 118);
+            this.btnCamera3.Name = "btnCamera3";
+            this.btnCamera3.Size = new System.Drawing.Size(58, 23);
+            this.btnCamera3.TabIndex = 35;
+            this.btnCamera3.Text = "Cámara 3";
+            this.btnCamera3.UseVisualStyleBackColor = true;
+            this.btnCamera3.Click += new System.EventHandler(this.btnCamera3_Click);
+            // 
+            // btnCamera4
+            // 
+            this.btnCamera4 = new System.Windows.Forms.Button();
+            this.btnCamera4.Location = new System.Drawing.Point(196, 118);
+            this.btnCamera4.Name = "btnCamera4";
+            this.btnCamera4.Size = new System.Drawing.Size(51, 23);
+            this.btnCamera4.TabIndex = 36;
+            this.btnCamera4.Text = "Cámara 4";
+            this.btnCamera4.UseVisualStyleBackColor = true;
+            this.btnCamera4.Click += new System.EventHandler(this.btnCamera4_Click);
+            // 
+            // groupBoxMasterCapture
+            // 
+            this.groupBoxMasterCapture = new System.Windows.Forms.GroupBox();
+            this.groupBoxMasterCapture.Location = new System.Drawing.Point(4, 147);
+            this.groupBoxMasterCapture.Name = "groupBoxMasterCapture";
+            this.groupBoxMasterCapture.Size = new System.Drawing.Size(243, 120);
+            this.groupBoxMasterCapture.TabIndex = 37;
+            this.groupBoxMasterCapture.TabStop = false;
+            this.groupBoxMasterCapture.Text = "Captura Maestra";
+            // 
+            // checkBoxCamera1
+            // 
+            this.checkBoxCamera1 = new System.Windows.Forms.CheckBox();
+            this.checkBoxCamera1.AutoSize = true;
+            this.checkBoxCamera1.Location = new System.Drawing.Point(10, 20);
+            this.checkBoxCamera1.Name = "checkBoxCamera1";
+            this.checkBoxCamera1.Size = new System.Drawing.Size(15, 14);
+            this.checkBoxCamera1.TabIndex = 38;
+            this.checkBoxCamera1.UseVisualStyleBackColor = true;
+            this.checkBoxCamera1.CheckedChanged += new System.EventHandler(this.checkBoxCamera1_CheckedChanged);
+            this.groupBoxMasterCapture.Controls.Add(this.checkBoxCamera1);
+            // 
+            // pictureBoxCamera1Status
+            // 
+            this.pictureBoxCamera1Status = new System.Windows.Forms.PictureBox();
+            this.pictureBoxCamera1Status.Location = new System.Drawing.Point(10, 20);
+            this.pictureBoxCamera1Status.Name = "pictureBoxCamera1Status";
+            this.pictureBoxCamera1Status.Size = new System.Drawing.Size(12, 12);
+            this.pictureBoxCamera1Status.TabIndex = 39;
+            this.pictureBoxCamera1Status.TabStop = false;
+            this.pictureBoxCamera1Status.BackColor = System.Drawing.Color.Red;
+            this.groupBoxMasterCapture.Controls.Add(this.pictureBoxCamera1Status);
+            // 
+            // labelCamera1Name
+            // 
+            this.labelCamera1Name = new System.Windows.Forms.Label();
+            this.labelCamera1Name.AutoSize = true;
+            this.labelCamera1Name.Location = new System.Drawing.Point(28, 20);
+            this.labelCamera1Name.Name = "labelCamera1Name";
+            this.labelCamera1Name.Size = new System.Drawing.Size(59, 12);
+            this.labelCamera1Name.TabIndex = 40;
+            this.labelCamera1Name.Text = "Cámara 1";
+            this.groupBoxMasterCapture.Controls.Add(this.labelCamera1Name);
+            // 
+            // labelCamera1ID
+            // 
+            this.labelCamera1ID = new System.Windows.Forms.Label();
+            this.labelCamera1ID.AutoSize = true;
+            this.labelCamera1ID.Font = new System.Drawing.Font("Microsoft Sans Serif", 7F);
+            this.labelCamera1ID.ForeColor = System.Drawing.Color.Gray;
+            this.labelCamera1ID.Location = new System.Drawing.Point(28, 35);
+            this.labelCamera1ID.Name = "labelCamera1ID";
+            this.labelCamera1ID.Size = new System.Drawing.Size(17, 12);
+            this.labelCamera1ID.TabIndex = 41;
+            this.labelCamera1ID.Text = "---";
+            this.groupBoxMasterCapture.Controls.Add(this.labelCamera1ID);
+            // 
+            // checkBoxCamera2
+            // 
+            this.checkBoxCamera2 = new System.Windows.Forms.CheckBox();
+            this.checkBoxCamera2.AutoSize = true;
+            this.checkBoxCamera2.Location = new System.Drawing.Point(10, 55);
+            this.checkBoxCamera2.Name = "checkBoxCamera2";
+            this.checkBoxCamera2.Size = new System.Drawing.Size(15, 14);
+            this.checkBoxCamera2.TabIndex = 42;
+            this.checkBoxCamera2.UseVisualStyleBackColor = true;
+            this.checkBoxCamera2.CheckedChanged += new System.EventHandler(this.checkBoxCamera2_CheckedChanged);
+            this.groupBoxMasterCapture.Controls.Add(this.checkBoxCamera2);
+            // 
+            // pictureBoxCamera2Status
+            // 
+            this.pictureBoxCamera2Status = new System.Windows.Forms.PictureBox();
+            this.pictureBoxCamera2Status.Location = new System.Drawing.Point(10, 55);
+            this.pictureBoxCamera2Status.Name = "pictureBoxCamera2Status";
+            this.pictureBoxCamera2Status.Size = new System.Drawing.Size(12, 12);
+            this.pictureBoxCamera2Status.TabIndex = 43;
+            this.pictureBoxCamera2Status.TabStop = false;
+            this.pictureBoxCamera2Status.BackColor = System.Drawing.Color.Red;
+            this.groupBoxMasterCapture.Controls.Add(this.pictureBoxCamera2Status);
+            // 
+            // labelCamera2Name
+            // 
+            this.labelCamera2Name = new System.Windows.Forms.Label();
+            this.labelCamera2Name.AutoSize = true;
+            this.labelCamera2Name.Location = new System.Drawing.Point(28, 55);
+            this.labelCamera2Name.Name = "labelCamera2Name";
+            this.labelCamera2Name.Size = new System.Drawing.Size(59, 12);
+            this.labelCamera2Name.TabIndex = 44;
+            this.labelCamera2Name.Text = "Cámara 2";
+            this.groupBoxMasterCapture.Controls.Add(this.labelCamera2Name);
+            // 
+            // labelCamera2ID
+            // 
+            this.labelCamera2ID = new System.Windows.Forms.Label();
+            this.labelCamera2ID.AutoSize = true;
+            this.labelCamera2ID.Font = new System.Drawing.Font("Microsoft Sans Serif", 7F);
+            this.labelCamera2ID.ForeColor = System.Drawing.Color.Gray;
+            this.labelCamera2ID.Location = new System.Drawing.Point(28, 70);
+            this.labelCamera2ID.Name = "labelCamera2ID";
+            this.labelCamera2ID.Size = new System.Drawing.Size(17, 12);
+            this.labelCamera2ID.TabIndex = 45;
+            this.labelCamera2ID.Text = "---";
+            this.groupBoxMasterCapture.Controls.Add(this.labelCamera2ID);
+            // 
+            // checkBoxCamera3
+            // 
+            this.checkBoxCamera3 = new System.Windows.Forms.CheckBox();
+            this.checkBoxCamera3.AutoSize = true;
+            this.checkBoxCamera3.Location = new System.Drawing.Point(125, 20);
+            this.checkBoxCamera3.Name = "checkBoxCamera3";
+            this.checkBoxCamera3.Size = new System.Drawing.Size(15, 14);
+            this.checkBoxCamera3.TabIndex = 46;
+            this.checkBoxCamera3.UseVisualStyleBackColor = true;
+            this.checkBoxCamera3.CheckedChanged += new System.EventHandler(this.checkBoxCamera3_CheckedChanged);
+            this.groupBoxMasterCapture.Controls.Add(this.checkBoxCamera3);
+            // 
+            // pictureBoxCamera3Status
+            // 
+            this.pictureBoxCamera3Status = new System.Windows.Forms.PictureBox();
+            this.pictureBoxCamera3Status.Location = new System.Drawing.Point(125, 20);
+            this.pictureBoxCamera3Status.Name = "pictureBoxCamera3Status";
+            this.pictureBoxCamera3Status.Size = new System.Drawing.Size(12, 12);
+            this.pictureBoxCamera3Status.TabIndex = 47;
+            this.pictureBoxCamera3Status.TabStop = false;
+            this.pictureBoxCamera3Status.BackColor = System.Drawing.Color.Red;
+            this.groupBoxMasterCapture.Controls.Add(this.pictureBoxCamera3Status);
+            // 
+            // labelCamera3Name
+            // 
+            this.labelCamera3Name = new System.Windows.Forms.Label();
+            this.labelCamera3Name.AutoSize = true;
+            this.labelCamera3Name.Location = new System.Drawing.Point(143, 20);
+            this.labelCamera3Name.Name = "labelCamera3Name";
+            this.labelCamera3Name.Size = new System.Drawing.Size(59, 12);
+            this.labelCamera3Name.TabIndex = 48;
+            this.labelCamera3Name.Text = "Cámara 3";
+            this.groupBoxMasterCapture.Controls.Add(this.labelCamera3Name);
+            // 
+            // labelCamera3ID
+            // 
+            this.labelCamera3ID = new System.Windows.Forms.Label();
+            this.labelCamera3ID.AutoSize = true;
+            this.labelCamera3ID.Font = new System.Drawing.Font("Microsoft Sans Serif", 7F);
+            this.labelCamera3ID.ForeColor = System.Drawing.Color.Gray;
+            this.labelCamera3ID.Location = new System.Drawing.Point(143, 35);
+            this.labelCamera3ID.Name = "labelCamera3ID";
+            this.labelCamera3ID.Size = new System.Drawing.Size(17, 12);
+            this.labelCamera3ID.TabIndex = 49;
+            this.labelCamera3ID.Text = "---";
+            this.groupBoxMasterCapture.Controls.Add(this.labelCamera3ID);
+            // 
+            // checkBoxCamera4
+            // 
+            this.checkBoxCamera4 = new System.Windows.Forms.CheckBox();
+            this.checkBoxCamera4.AutoSize = true;
+            this.checkBoxCamera4.Location = new System.Drawing.Point(125, 55);
+            this.checkBoxCamera4.Name = "checkBoxCamera4";
+            this.checkBoxCamera4.Size = new System.Drawing.Size(15, 14);
+            this.checkBoxCamera4.TabIndex = 50;
+            this.checkBoxCamera4.UseVisualStyleBackColor = true;
+            this.checkBoxCamera4.CheckedChanged += new System.EventHandler(this.checkBoxCamera4_CheckedChanged);
+            this.groupBoxMasterCapture.Controls.Add(this.checkBoxCamera4);
+            // 
+            // pictureBoxCamera4Status
+            // 
+            this.pictureBoxCamera4Status = new System.Windows.Forms.PictureBox();
+            this.pictureBoxCamera4Status.Location = new System.Drawing.Point(125, 55);
+            this.pictureBoxCamera4Status.Name = "pictureBoxCamera4Status";
+            this.pictureBoxCamera4Status.Size = new System.Drawing.Size(12, 12);
+            this.pictureBoxCamera4Status.TabIndex = 51;
+            this.pictureBoxCamera4Status.TabStop = false;
+            this.pictureBoxCamera4Status.BackColor = System.Drawing.Color.Red;
+            this.groupBoxMasterCapture.Controls.Add(this.pictureBoxCamera4Status);
+            // 
+            // labelCamera4Name
+            // 
+            this.labelCamera4Name = new System.Windows.Forms.Label();
+            this.labelCamera4Name.AutoSize = true;
+            this.labelCamera4Name.Location = new System.Drawing.Point(143, 55);
+            this.labelCamera4Name.Name = "labelCamera4Name";
+            this.labelCamera4Name.Size = new System.Drawing.Size(59, 12);
+            this.labelCamera4Name.TabIndex = 52;
+            this.labelCamera4Name.Text = "Cámara 4";
+            this.groupBoxMasterCapture.Controls.Add(this.labelCamera4Name);
+            // 
+            // labelCamera4ID
+            // 
+            this.labelCamera4ID = new System.Windows.Forms.Label();
+            this.labelCamera4ID.AutoSize = true;
+            this.labelCamera4ID.Font = new System.Drawing.Font("Microsoft Sans Serif", 7F);
+            this.labelCamera4ID.ForeColor = System.Drawing.Color.Gray;
+            this.labelCamera4ID.Location = new System.Drawing.Point(143, 70);
+            this.labelCamera4ID.Name = "labelCamera4ID";
+            this.labelCamera4ID.Size = new System.Drawing.Size(17, 12);
+            this.labelCamera4ID.TabIndex = 53;
+            this.labelCamera4ID.Text = "---";
+            this.groupBoxMasterCapture.Controls.Add(this.labelCamera4ID);
+            // 
+            // btnMasterCapture
+            // 
+            this.btnMasterCapture = new System.Windows.Forms.Button();
+            this.btnMasterCapture.Location = new System.Drawing.Point(10, 90);
+            this.btnMasterCapture.Name = "btnMasterCapture";
+            this.btnMasterCapture.Size = new System.Drawing.Size(223, 25);
+            this.btnMasterCapture.TabIndex = 54;
+            this.btnMasterCapture.Text = "Captura Maestra";
+            this.btnMasterCapture.UseVisualStyleBackColor = true;
+            this.btnMasterCapture.Enabled = false;
+            this.btnMasterCapture.Click += new System.EventHandler(this.btnMasterCapture_Click);
+            this.groupBoxMasterCapture.Controls.Add(this.btnMasterCapture);
+            // 
             // panelMenu
             // 
             this.panelMenu.AutoScroll = true;
@@ -1329,6 +1645,13 @@
             this.panelMenu.Controls.Add(this.btnHeadCapture);
             this.panelMenu.Controls.Add(this.panelParam);
             this.panelMenu.Controls.Add(this.btnHeadParam);
+            this.panelMenu.Controls.Add(this.labelCameraSelect);
+            this.panelMenu.Controls.Add(this.comBoxCameraSelect);
+            this.panelMenu.Controls.Add(this.btnCamera1);
+            this.panelMenu.Controls.Add(this.btnCamera2);
+            this.panelMenu.Controls.Add(this.btnCamera3);
+            this.panelMenu.Controls.Add(this.btnCamera4);
+            this.panelMenu.Controls.Add(this.groupBoxMasterCapture);
             this.panelMenu.Location = new System.Drawing.Point(9, 12);
             this.panelMenu.Margin = new System.Windows.Forms.Padding(0);
             this.panelMenu.Name = "panelMenu";
@@ -2181,6 +2504,10 @@
             ((System.ComponentModel.ISupportInitialize)(this.trackBarGain)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.trackBarExp)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBoxCamera1Status)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBoxCamera2Status)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBoxCamera3Status)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBoxCamera4Status)).EndInit();
             this.panelConnect.ResumeLayout(false);
             this.panelConnect.PerformLayout();
             this.panelMenu.ResumeLayout(false);
@@ -2296,6 +2623,33 @@
         private System.Windows.Forms.Label label10;
         private System.Windows.Forms.Label labelFileFormat;
         private System.Windows.Forms.ComboBox comBoxFileFormat;
+        
+        // Controles multi-cámara
+        private System.Windows.Forms.ComboBox comBoxCameraSelect;
+        private System.Windows.Forms.Label labelCameraSelect;
+        private System.Windows.Forms.Button btnCamera1;
+        private System.Windows.Forms.Button btnCamera2;
+        private System.Windows.Forms.Button btnCamera3;
+        private System.Windows.Forms.Button btnCamera4;
+        private System.Windows.Forms.Panel panelCameraSelection;
+        private System.Windows.Forms.CheckBox checkBoxCamera1;
+        private System.Windows.Forms.CheckBox checkBoxCamera2;
+        private System.Windows.Forms.CheckBox checkBoxCamera3;
+        private System.Windows.Forms.CheckBox checkBoxCamera4;
+        private System.Windows.Forms.Label labelCamera1Name;
+        private System.Windows.Forms.Label labelCamera1ID;
+        private System.Windows.Forms.Label labelCamera2Name;
+        private System.Windows.Forms.Label labelCamera2ID;
+        private System.Windows.Forms.Label labelCamera3Name;
+        private System.Windows.Forms.Label labelCamera3ID;
+        private System.Windows.Forms.Label labelCamera4Name;
+        private System.Windows.Forms.Label labelCamera4ID;
+        private System.Windows.Forms.PictureBox pictureBoxCamera1Status;
+        private System.Windows.Forms.PictureBox pictureBoxCamera2Status;
+        private System.Windows.Forms.PictureBox pictureBoxCamera3Status;
+        private System.Windows.Forms.PictureBox pictureBoxCamera4Status;
+        private System.Windows.Forms.Button btnMasterCapture;
+        private System.Windows.Forms.GroupBox groupBoxMasterCapture;
         private System.Windows.Forms.NumericUpDown numUDPB9;
         private System.Windows.Forms.NumericUpDown numUDPA9;
         private System.Windows.Forms.ComboBox comBoxBits;

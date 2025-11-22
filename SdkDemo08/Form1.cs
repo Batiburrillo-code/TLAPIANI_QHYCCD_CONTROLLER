@@ -25,6 +25,11 @@ namespace SdkDemo08
 {
     public partial class Form1 : Form
     {
+        // Sistema multi-cámara
+        private CameraState[] cameras = new CameraState[4]; // Array para 4 cámaras
+        private int currentCameraIndex = 0; // Índice de la cámara actualmente seleccionada
+        private int totalCamerasDetected = 0; // Total de cámaras detectadas
+
         int b1 = 1, b2 = 1, b3 = 1, b4 = 1, b5 = 1, b6 = 1, b7 = 1, b8 = 1;
 
         int singleCount = 0, liveCount = 0;
@@ -97,6 +102,13 @@ namespace SdkDemo08
             try
             {
                 InitializeComponent();
+                
+                // Inicializar array de cámaras
+                for (int i = 0; i < 4; i++)
+                {
+                    cameras[i] = new CameraState(i);
+                }
+                
                 // Agregar event handlers para cambio de modo
                 this.radioBtnSingle.CheckedChanged += new EventHandler(radioBtnSingle_CheckedChanged);
                 this.radioBtnLive.CheckedChanged += new EventHandler(radioBtnLive_CheckedChanged);
@@ -104,12 +116,308 @@ namespace SdkDemo08
                 
                 // Inicializar controles de grabación (barra de progreso y label)
                 InitializeRecordingControls();
+                
+                // Inicializar controles multi-cámara
+                InitializeMultiCameraControls();
             }
             catch (Exception ex)
             {
                 MessageBox.Show("Error al inicializar el formulario:\n\n" + ex.Message + "\n\n" + ex.StackTrace, 
                     "Error de Inicialización", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 throw; // Re-lanzar para que el Application.Run pueda manejarlo
+            }
+        }
+        
+        /// <summary>
+        /// Inicializa los controles para el sistema multi-cámara
+        /// </summary>
+        private void InitializeMultiCameraControls()
+        {
+            if (this.comBoxCameraSelect != null)
+            {
+                this.comBoxCameraSelect.SelectedIndex = 0;
+                UpdateCameraSelectionUI();
+            }
+        }
+        
+        /// <summary>
+        /// Obtiene la cámara actualmente seleccionada
+        /// </summary>
+        private CameraState GetCurrentCamera()
+        {
+            return cameras[currentCameraIndex];
+        }
+        
+        /// <summary>
+        /// Sincroniza Common con la cámara actual para compatibilidad con código existente
+        /// </summary>
+        private void SyncCommonWithCurrentCamera()
+        {
+            CameraState cam = GetCurrentCamera();
+            Common.camHandle = cam.CameraHandle;
+            Common.camID = cam.CameraID;
+            Common.camReadMode = cam.ReadMode;
+            Common.camBinX = cam.BinX;
+            Common.camBinY = cam.BinY;
+            Common.camImageBits = cam.ImageBits;
+            Common.camColorOnOff = cam.ColorOnOff;
+            Common.camExpTime = cam.ExpTime;
+            Common.camGain = cam.Gain;
+            Common.camOffset = cam.Offset;
+            Common.camTraffic = cam.Traffic;
+            Common.camStreamMode = cam.StreamMode;
+            Common.canLive = cam.CanLive;
+            Common.canSingle = cam.CanSingle;
+            Common.imageFileFormat = cam.ImageFileFormat;
+            Common.camImageWidth = cam.ImageWidth;
+            Common.camImageHeight = cam.ImageHeight;
+            Common.camChipWidth = cam.ChipWidth;
+            Common.camChipHeight = cam.ChipHeight;
+            Common.camPixelWidth = cam.PixelWidth;
+            Common.camPixelHeight = cam.PixelHeight;
+            Common.camCurImgWidth = cam.CurImgWidth;
+            Common.camCurImgHeight = cam.CurImgHeight;
+            Common.camCurImgBits = cam.CurImgBits;
+            Common.camCurImgChannels = cam.CurImgChannels;
+            
+            // Sincronizar variables de respaldo para compatibilidad
+            saveFolderPath = cam.SaveFolderPath;
+            currentLiveSessionFolder = cam.CurrentLiveSessionFolder;
+            recordingSessionFolder = cam.RecordingSessionFolder;
+            singleFrameCounter = cam.SingleFrameCounter;
+            liveFrameCounter = cam.LiveFrameCounter;
+            recordingFrameCounter = cam.RecordingFrameCounter;
+            recordingConfig = cam.RecordingConfig;
+            isConnect = cam.IsConnected;
+        }
+        
+        /// <summary>
+        /// Sincroniza la cámara actual con Common (para cuando Common cambia)
+        /// </summary>
+        private void SyncCurrentCameraWithCommon()
+        {
+            CameraState cam = GetCurrentCamera();
+            cam.CameraHandle = Common.camHandle;
+            cam.ReadMode = Common.camReadMode;
+            cam.BinX = Common.camBinX;
+            cam.BinY = Common.camBinY;
+            cam.ImageBits = Common.camImageBits;
+            cam.ColorOnOff = Common.camColorOnOff;
+            cam.ExpTime = Common.camExpTime;
+            cam.Gain = Common.camGain;
+            cam.Offset = Common.camOffset;
+            cam.Traffic = Common.camTraffic;
+            cam.StreamMode = Common.camStreamMode;
+            cam.ImageFileFormat = Common.imageFileFormat;
+        }
+        
+        /// <summary>
+        /// Cambia a la cámara especificada
+        /// </summary>
+        private void SwitchToCamera(int cameraIndex)
+        {
+            if (cameraIndex < 0 || cameraIndex >= 4)
+                return;
+                
+            // Guardar estado de la cámara actual antes de cambiar
+            SaveCurrentCameraState();
+            SyncCurrentCameraWithCommon(); // Sincronizar cambios de Common
+            
+            // Cambiar a la nueva cámara
+            currentCameraIndex = cameraIndex;
+            
+            // Sincronizar Common con la nueva cámara
+            SyncCommonWithCurrentCamera();
+            
+            // Cargar estado de la nueva cámara
+            LoadCameraState();
+            
+            // Actualizar UI
+            UpdateCameraSelectionUI();
+            UpdateAllUIForCurrentCamera();
+        }
+        
+        /// <summary>
+        /// Guarda el estado actual de la cámara en el objeto CameraState
+        /// </summary>
+        private void SaveCurrentCameraState()
+        {
+            CameraState cam = GetCurrentCamera();
+            
+            // Guardar parámetros de UI
+            if (this.comBoxReadMode != null && this.comBoxReadMode.SelectedIndex >= 0)
+                cam.ReadMode = (uint)this.comBoxReadMode.SelectedIndex;
+            if (this.comBoxBinMode != null && this.comBoxBinMode.SelectedIndex >= 0)
+            {
+                string binText = this.comBoxBinMode.SelectedItem.ToString();
+                cam.BinX = cam.BinY = uint.Parse(binText.Substring(0, 1));
+            }
+            if (this.comBoxBits != null && this.comBoxBits.SelectedItem != null)
+            {
+                string bitsText = this.comBoxBits.SelectedItem.ToString();
+                if (bitsText == "RAW8") cam.ImageBits = 8;
+                else if (bitsText == "RAW16") cam.ImageBits = 16;
+                else if (bitsText == "RGB24") cam.ImageBits = 24;
+            }
+            if (this.comBoxFileFormat != null && this.comBoxFileFormat.SelectedItem != null)
+                cam.ImageFileFormat = this.comBoxFileFormat.SelectedItem.ToString();
+            if (this.textBoxExp != null)
+                double.TryParse(this.textBoxExp.Text, out cam.ExpTime);
+            if (this.testBoxGain != null)
+                double.TryParse(this.testBoxGain.Text, out cam.Gain);
+            if (this.textBoxOffset != null)
+                double.TryParse(this.textBoxOffset.Text, out cam.Offset);
+            if (this.textBoxUSBTraffic != null)
+                double.TryParse(this.textBoxUSBTraffic.Text, out cam.Traffic);
+            
+            // Guardar modo de captura
+            if (this.radioBtnSingle != null && this.radioBtnSingle.Checked)
+                cam.CaptureMode = "SINGLE";
+            else if (this.radioBtnLive != null && this.radioBtnLive.Checked)
+                cam.CaptureMode = "LIVE";
+            else if (this.radioBtnRecording != null && this.radioBtnRecording.Checked)
+                cam.CaptureMode = "RECORDING";
+        }
+        
+        /// <summary>
+        /// Carga el estado de la cámara actual en la UI
+        /// </summary>
+        private void LoadCameraState()
+        {
+            CameraState cam = GetCurrentCamera();
+            
+            // Cargar parámetros en UI
+            if (this.comBoxReadMode != null && cam.ReadMode < this.comBoxReadMode.Items.Count)
+                this.comBoxReadMode.SelectedIndex = (int)cam.ReadMode;
+            if (this.comBoxBinMode != null)
+            {
+                string binText = string.Format("{0}X{0}", cam.BinX);
+                int index = this.comBoxBinMode.Items.IndexOf(binText);
+                if (index >= 0) this.comBoxBinMode.SelectedIndex = index;
+            }
+            if (this.comBoxBits != null)
+            {
+                string bitsText = cam.ImageBits == 8 ? "RAW8" : (cam.ImageBits == 16 ? "RAW16" : "RGB24");
+                int index = this.comBoxBits.Items.IndexOf(bitsText);
+                if (index >= 0) this.comBoxBits.SelectedIndex = index;
+            }
+            if (this.comBoxFileFormat != null)
+            {
+                int index = this.comBoxFileFormat.Items.IndexOf(cam.ImageFileFormat);
+                if (index >= 0) this.comBoxFileFormat.SelectedIndex = index;
+            }
+            if (this.textBoxExp != null)
+                this.textBoxExp.Text = cam.ExpTime.ToString();
+            if (this.testBoxGain != null)
+                this.testBoxGain.Text = cam.Gain.ToString();
+            if (this.textBoxOffset != null)
+                this.textBoxOffset.Text = cam.Offset.ToString();
+            if (this.textBoxUSBTraffic != null)
+                this.textBoxUSBTraffic.Text = cam.Traffic.ToString();
+            
+            // Cargar modo de captura
+            if (this.radioBtnSingle != null)
+                this.radioBtnSingle.Checked = (cam.CaptureMode == "SINGLE");
+            if (this.radioBtnLive != null)
+                this.radioBtnLive.Checked = (cam.CaptureMode == "LIVE");
+            if (this.radioBtnRecording != null)
+                this.radioBtnRecording.Checked = (cam.CaptureMode == "RECORDING");
+        }
+        
+        /// <summary>
+        /// Actualiza la UI de selección de cámara
+        /// </summary>
+        private void UpdateCameraSelectionUI()
+        {
+            if (this.comBoxCameraSelect != null)
+                this.comBoxCameraSelect.SelectedIndex = currentCameraIndex;
+        }
+        
+        /// <summary>
+        /// Actualiza toda la UI para la cámara actual
+        /// </summary>
+        private void UpdateAllUIForCurrentCamera()
+        {
+            CameraState cam = GetCurrentCamera();
+            
+            // Habilitar/deshabilitar controles según estado de conexión
+            bool enabled = cam.IsConnected;
+            
+            if (this.comBoxReadMode != null) this.comBoxReadMode.Enabled = enabled;
+            if (this.comBoxBinMode != null) this.comBoxBinMode.Enabled = enabled;
+            if (this.comBoxBits != null) this.comBoxBits.Enabled = enabled;
+            if (this.comBoxFileFormat != null) this.comBoxFileFormat.Enabled = enabled;
+            if (this.textBoxExp != null) this.textBoxExp.Enabled = enabled;
+            if (this.testBoxGain != null) this.testBoxGain.Enabled = enabled;
+            if (this.textBoxOffset != null) this.textBoxOffset.Enabled = enabled;
+            if (this.textBoxUSBTraffic != null) this.textBoxUSBTraffic.Enabled = enabled;
+            
+            // Actualizar indicadores de estado
+            UpdateCameraStatusIndicators();
+        }
+        
+        /// <summary>
+        /// Actualiza los indicadores de estado de las cámaras
+        /// </summary>
+        private void UpdateCameraStatusIndicators()
+        {
+            System.Drawing.Color[] statusColors = new System.Drawing.Color[4];
+            for (int i = 0; i < 4; i++)
+            {
+                statusColors[i] = cameras[i].IsConnected ? System.Drawing.Color.Green : System.Drawing.Color.Red;
+            }
+            
+            if (this.pictureBoxCamera1Status != null)
+                this.pictureBoxCamera1Status.BackColor = statusColors[0];
+            if (this.pictureBoxCamera2Status != null)
+                this.pictureBoxCamera2Status.BackColor = statusColors[1];
+            if (this.pictureBoxCamera3Status != null)
+                this.pictureBoxCamera3Status.BackColor = statusColors[2];
+            if (this.pictureBoxCamera4Status != null)
+                this.pictureBoxCamera4Status.BackColor = statusColors[3];
+            
+            // Actualizar labels de ID
+            if (this.labelCamera1ID != null)
+                this.labelCamera1ID.Text = cameras[0].IsConnected ? cameras[0].CameraID.ToString() : "---";
+            if (this.labelCamera2ID != null)
+                this.labelCamera2ID.Text = cameras[1].IsConnected ? cameras[1].CameraID.ToString() : "---";
+            if (this.labelCamera3ID != null)
+                this.labelCamera3ID.Text = cameras[2].IsConnected ? cameras[2].CameraID.ToString() : "---";
+            if (this.labelCamera4ID != null)
+                this.labelCamera4ID.Text = cameras[3].IsConnected ? cameras[3].CameraID.ToString() : "---";
+            
+            // Actualizar checkboxes según selección para captura maestra
+            if (this.checkBoxCamera1 != null)
+                this.checkBoxCamera1.Checked = cameras[0].IsSelectedForMasterCapture && cameras[0].IsConnected;
+            if (this.checkBoxCamera2 != null)
+                this.checkBoxCamera2.Checked = cameras[1].IsSelectedForMasterCapture && cameras[1].IsConnected;
+            if (this.checkBoxCamera3 != null)
+                this.checkBoxCamera3.Checked = cameras[2].IsSelectedForMasterCapture && cameras[2].IsConnected;
+            if (this.checkBoxCamera4 != null)
+                this.checkBoxCamera4.Checked = cameras[3].IsSelectedForMasterCapture && cameras[3].IsConnected;
+            
+            // Habilitar botón de captura maestra si hay al menos una cámara seleccionada
+            if (this.btnMasterCapture != null)
+            {
+                bool hasSelected = cameras[0].IsSelectedForMasterCapture || 
+                                  cameras[1].IsSelectedForMasterCapture || 
+                                  cameras[2].IsSelectedForMasterCapture || 
+                                  cameras[3].IsSelectedForMasterCapture;
+                this.btnMasterCapture.Enabled = hasSelected;
+            }
+        }
+        
+        // Event handlers para botones de cámara
+        private void btnCamera1_Click(object sender, EventArgs e) { SwitchToCamera(0); }
+        private void btnCamera2_Click(object sender, EventArgs e) { SwitchToCamera(1); }
+        private void btnCamera3_Click(object sender, EventArgs e) { SwitchToCamera(2); }
+        private void btnCamera4_Click(object sender, EventArgs e) { SwitchToCamera(3); }
+        
+        private void comBoxCameraSelect_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (this.comBoxCameraSelect != null && this.comBoxCameraSelect.SelectedIndex >= 0)
+            {
+                SwitchToCamera(this.comBoxCameraSelect.SelectedIndex);
             }
         }
 
@@ -244,19 +552,58 @@ namespace SdkDemo08
 
         private void btnSelectFolder_Click(object sender, EventArgs e)
         {
-            folderBrowserDialog.Description = "Seleccione la carpeta donde se guardarán las imágenes FITS";
+            folderBrowserDialog.Description = "Seleccione la carpeta donde se guardarán las imágenes";
             folderBrowserDialog.ShowNewFolderButton = true;
             
             if (folderBrowserDialog.ShowDialog() == DialogResult.OK)
             {
-                saveFolderPath = folderBrowserDialog.SelectedPath;
-                string folderName = Path.GetFileName(saveFolderPath);
+                CameraState cam = GetCurrentCamera();
+                cam.SaveFolderPath = folderBrowserDialog.SelectedPath;
+                
+                string folderName = Path.GetFileName(cam.SaveFolderPath);
                 if (folderName.Length > 30)
                 {
                     folderName = folderName.Substring(0, 27) + "...";
                 }
                 labelSaveFolder.Text = folderName;
-                Console.WriteLine("Carpeta de guardado seleccionada: {0}", saveFolderPath);
+                Console.WriteLine("Carpeta de guardado seleccionada para {0}: {1}", cam.CameraName, cam.SaveFolderPath);
+            }
+        }
+        
+        // Event handlers para checkboxes de selección de cámaras
+        private void checkBoxCamera1_CheckedChanged(object sender, EventArgs e)
+        {
+            if (this.checkBoxCamera1 != null)
+            {
+                cameras[0].IsSelectedForMasterCapture = this.checkBoxCamera1.Checked;
+                UpdateCameraStatusIndicators();
+            }
+        }
+        
+        private void checkBoxCamera2_CheckedChanged(object sender, EventArgs e)
+        {
+            if (this.checkBoxCamera2 != null)
+            {
+                cameras[1].IsSelectedForMasterCapture = this.checkBoxCamera2.Checked;
+                UpdateCameraStatusIndicators();
+            }
+        }
+        
+        private void checkBoxCamera3_CheckedChanged(object sender, EventArgs e)
+        {
+            if (this.checkBoxCamera3 != null)
+            {
+                cameras[2].IsSelectedForMasterCapture = this.checkBoxCamera3.Checked;
+                UpdateCameraStatusIndicators();
+            }
+        }
+        
+        private void checkBoxCamera4_CheckedChanged(object sender, EventArgs e)
+        {
+            if (this.checkBoxCamera4 != null)
+            {
+                cameras[3].IsSelectedForMasterCapture = this.checkBoxCamera4.Checked;
+                UpdateCameraStatusIndicators();
             }
         }
 
@@ -345,8 +692,218 @@ namespace SdkDemo08
         }
 
         //#region Common properties and methods.
+        
+        /// <summary>
+        /// Conecta todas las cámaras detectadas automáticamente
+        /// </summary>
+        private void ConnectAllCameras()
+        {
+            isSetupUI = true;
+
+            InitRegisterPnpEventIn();
+            InitRegisterPnpEventOut();
+
+            // Inicializar recursos
+            int retVal = ASCOM.QHYCCD.libqhyccd.InitQHYCCDResource();
+            if (retVal != 0)
+            {
+                MessageBox.Show("Error al inicializar recursos de cámara.");
+                return;
+            }
+
+            // Escanear cámaras
+            int camScanNum = ASCOM.QHYCCD.libqhyccd.ScanQHYCCD();
+            if (camScanNum <= 0)
+            {
+                MessageBox.Show("No se detectaron cámaras.");
+                return;
+            }
+
+            totalCamerasDetected = Math.Min(camScanNum, 4); // Máximo 4 cámaras
+
+            // Conectar cada cámara detectada
+            for (int i = 0; i < totalCamerasDetected; i++)
+            {
+                ConnectSingleCamera(i);
+            }
+
+            // Actualizar UI
+            UpdateCameraStatusIndicators();
+            
+            // Cambiar a la primera cámara conectada
+            for (int i = 0; i < 4; i++)
+            {
+                if (cameras[i].IsConnected)
+                {
+                    SwitchToCamera(i);
+                    break;
+                }
+            }
+        }
+        
+        /// <summary>
+        /// Conecta una cámara individual por índice
+        /// </summary>
+        private void ConnectSingleCamera(int cameraIndex)
+        {
+            if (cameraIndex < 0 || cameraIndex >= 4)
+                return;
+
+            CameraState cam = cameras[cameraIndex];
+            
+            try
+            {
+                // Obtener ID de la cámara
+                StringBuilder camID = new StringBuilder(0);
+                int retVal = ASCOM.QHYCCD.libqhyccd.GetQHYCCDId((uint)cameraIndex, camID);
+                if (retVal != 0)
+                {
+                    Console.WriteLine("Error al obtener ID de cámara {0}", cameraIndex);
+                    return;
+                }
+
+                cam.CameraID = camID;
+                Console.WriteLine("Cámara {0} ID = {1}", cameraIndex + 1, camID);
+
+                // Abrir cámara
+                IntPtr handle = ASCOM.QHYCCD.libqhyccd.OpenQHYCCD(camID);
+                if (handle == IntPtr.Zero)
+                {
+                    Console.WriteLine("Error al abrir cámara {0}", cameraIndex);
+                    return;
+                }
+
+                cam.CameraHandle = handle;
+
+                // Inicializar cámara
+                retVal = ASCOM.QHYCCD.libqhyccd.InitQHYCCD(handle);
+                if (retVal != 0)
+                {
+                    Console.WriteLine("Error al inicializar cámara {0}", cameraIndex);
+                    ASCOM.QHYCCD.libqhyccd.CloseQHYCCD(handle);
+                    return;
+                }
+
+                // Obtener información básica de la cámara
+                GetCameraCapabilities(cam);
+                GetCameraChipInfo(cam);
+
+                cam.IsConnected = true;
+                Console.WriteLine("Cámara {0} conectada exitosamente", cameraIndex + 1);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Excepción al conectar cámara {0}: {1}", cameraIndex, ex.Message);
+                cam.IsConnected = false;
+            }
+        }
+        
+        /// <summary>
+        /// Obtiene las capacidades de una cámara
+        /// </summary>
+        private void GetCameraCapabilities(CameraState cam)
+        {
+            int retVal;
+            
+            // Live mode
+            retVal = ASCOM.QHYCCD.libqhyccd.IsQHYCCDControlAvailable(cam.CameraHandle, CONTROL_ID.CAM_LIVEVIDEOMODE);
+            cam.CanLive = (retVal == 0);
+            
+            // Single mode
+            retVal = ASCOM.QHYCCD.libqhyccd.IsQHYCCDControlAvailable(cam.CameraHandle, CONTROL_ID.CAM_SINGLEFRAMEMODE);
+            cam.CanSingle = (retVal == 0);
+            
+            // BIN modes
+            retVal = ASCOM.QHYCCD.libqhyccd.IsQHYCCDControlAvailable(cam.CameraHandle, CONTROL_ID.CAM_BIN1X1MODE);
+            cam.CanBIN1X1 = (retVal == 0);
+            retVal = ASCOM.QHYCCD.libqhyccd.IsQHYCCDControlAvailable(cam.CameraHandle, CONTROL_ID.CAM_BIN2X2MODE);
+            cam.CanBIN2X2 = (retVal == 0);
+            retVal = ASCOM.QHYCCD.libqhyccd.IsQHYCCDControlAvailable(cam.CameraHandle, CONTROL_ID.CAM_BIN3X3MODE);
+            cam.CanBIN3X3 = (retVal == 0);
+            retVal = ASCOM.QHYCCD.libqhyccd.IsQHYCCDControlAvailable(cam.CameraHandle, CONTROL_ID.CAM_BIN4X4MODE);
+            cam.CanBIN4X4 = (retVal == 0);
+            
+            // Otros controles
+            retVal = ASCOM.QHYCCD.libqhyccd.IsQHYCCDControlAvailable(cam.CameraHandle, CONTROL_ID.CONTROL_EXPOSURE);
+            cam.CanSetExpTime = (retVal == 0);
+            retVal = ASCOM.QHYCCD.libqhyccd.IsQHYCCDControlAvailable(cam.CameraHandle, CONTROL_ID.CONTROL_GAIN);
+            cam.CanSetGain = (retVal == 0);
+            retVal = ASCOM.QHYCCD.libqhyccd.IsQHYCCDControlAvailable(cam.CameraHandle, CONTROL_ID.CONTROL_OFFSET);
+            cam.CanSetOffset = (retVal == 0);
+            retVal = ASCOM.QHYCCD.libqhyccd.IsQHYCCDControlAvailable(cam.CameraHandle, CONTROL_ID.CONTROL_USBTRAFFIC);
+            cam.CanSetTraffic = (retVal == 0);
+            retVal = ASCOM.QHYCCD.libqhyccd.IsQHYCCDControlAvailable(cam.CameraHandle, CONTROL_ID.CAM_IS_COLOR);
+            cam.CanSetColor = (retVal == 0);
+            retVal = ASCOM.QHYCCD.libqhyccd.IsQHYCCDControlAvailable(cam.CameraHandle, CONTROL_ID.CONTROL_TRANSFERBIT);
+            cam.CanSet8Bits = (retVal == 0);
+            cam.CanSet16Bits = (retVal == 0);
+            retVal = ASCOM.QHYCCD.libqhyccd.IsQHYCCDControlAvailable(cam.CameraHandle, CONTROL_ID.CONTROL_COOLER);
+            cam.CanCooler = (retVal == 0);
+        }
+        
+        /// <summary>
+        /// Obtiene la información del chip de una cámara
+        /// </summary>
+        private void GetCameraChipInfo(CameraState cam)
+        {
+            double chipWidth = 0, chipHeight = 0, pixelWidth = 0, pixelHeight = 0;
+            uint imageWidth = 0, imageHeight = 0, imageBits = 0;
+            
+            int retVal = ASCOM.QHYCCD.libqhyccd.GetQHYCCDChipInfo(cam.CameraHandle, 
+                ref chipWidth, ref chipHeight, 
+                ref imageWidth, ref imageHeight, 
+                ref pixelWidth, ref pixelHeight, 
+                ref imageBits);
+            
+            if (retVal == 0)
+            {
+                cam.ChipWidth = chipWidth;
+                cam.ChipHeight = chipHeight;
+                cam.ImageWidth = imageWidth;
+                cam.ImageHeight = imageHeight;
+                cam.PixelWidth = pixelWidth;
+                cam.PixelHeight = pixelHeight;
+                cam.ImageBits = imageBits;
+                
+                uint efStartX = 0, efStartY = 0, efSizeX = 0, efSizeY = 0;
+                ASCOM.QHYCCD.libqhyccd.GetQHYCCDEffectiveArea(cam.CameraHandle, 
+                    ref efStartX, ref efStartY, ref efSizeX, ref efSizeY);
+                cam.EFStartX = efStartX;
+                cam.EFStartY = efStartY;
+                cam.EFSizeX = efSizeX;
+                cam.EFSizeY = efSizeY;
+                
+                uint osStartX = 0, osStartY = 0, osSizeX = 0, osSizeY = 0;
+                ASCOM.QHYCCD.libqhyccd.GetQHYCCDOverScanArea(cam.CameraHandle, 
+                    ref osStartX, ref osStartY, ref osSizeX, ref osSizeY);
+                cam.OSStartX = osStartX;
+                cam.OSStartY = osStartY;
+                cam.OSSizeX = osSizeX;
+                cam.OSSizeY = osSizeY;
+            }
+        }
 
         private void Connection_Click(object sender, EventArgs e)
+        {
+            // Usar la nueva función de conexión multi-cámara
+            ConnectAllCameras();
+            
+            // Si hay al menos una cámara conectada, actualizar UI de la primera
+            for (int i = 0; i < 4; i++)
+            {
+                if (cameras[i].IsConnected)
+                {
+                    SwitchToCamera(i);
+                    break;
+                }
+            }
+            
+            // Sincronizar Common con la cámara actual
+            SyncCommonWithCurrentCamera();
+        }
+        
+        // Función original mantenida para compatibilidad, pero ahora llama a ConnectAllCameras
+        private void Connection_Click_Original(object sender, EventArgs e)
         {
             isSetupUI = true;
 
@@ -1340,11 +1897,13 @@ namespace SdkDemo08
         unsafe private void SaveImageToFITS(byte[] rawData, uint width, uint height, 
             uint bitsPerPixel, uint channels, string imageType, uint frameNumber = 0, string filePath = null)
         {
-            // Usar el formato seleccionado
-            string format = Common.imageFileFormat;
+            // Usar el formato seleccionado de la cámara actual
+            CameraState cam = GetCurrentCamera();
+            string format = cam.ImageFileFormat;
             if (this.comBoxFileFormat != null && this.comBoxFileFormat.SelectedItem != null)
             {
                 format = this.comBoxFileFormat.SelectedItem.ToString();
+                cam.ImageFileFormat = format; // Actualizar en el estado de la cámara
             }
             
             if (format == "PNG")
@@ -1370,11 +1929,20 @@ namespace SdkDemo08
                 // Si no se proporciona filePath, calcularlo
                 if (string.IsNullOrEmpty(finalFilePath))
                 {
+                    CameraState cam = GetCurrentCamera();
+                    
                     // Verificar que hay una carpeta seleccionada
-                    if (string.IsNullOrEmpty(saveFolderPath))
+                    if (string.IsNullOrEmpty(cam.SaveFolderPath))
                     {
                         Console.WriteLine("No se ha seleccionado carpeta de guardado.");
                         return;
+                    }
+
+                    // Asegurar que existe la carpeta de la cámara
+                    string cameraFolder = Path.Combine(cam.SaveFolderPath, cam.GetCameraFolderName());
+                    if (!Directory.Exists(cameraFolder))
+                    {
+                        Directory.CreateDirectory(cameraFolder);
                     }
 
                     // Determinar el nombre del archivo y la carpeta
@@ -1383,36 +1951,40 @@ namespace SdkDemo08
                     
                     if (imageType == "LIVE")
                     {
-                        if (string.IsNullOrEmpty(currentLiveSessionFolder))
+                        if (string.IsNullOrEmpty(cam.CurrentLiveSessionFolder))
                         {
                             Console.WriteLine("No hay carpeta de sesión activa para Live mode.");
                             return;
                         }
-                        folderPath = currentLiveSessionFolder;
+                        folderPath = cam.CurrentLiveSessionFolder;
                         DateTime now = DateTime.UtcNow;
-                        fileName = string.Format("Live_{0}_{1:D3}.fit", 
-                            now.ToString("yyyyMMdd_HHmmss"), frameNumber);
+                        string ext = cam.ImageFileFormat == "PNG" ? "png" : "fit";
+                        fileName = string.Format("Live_{0}_{1:D3}.{2}", 
+                            now.ToString("yyyyMMdd_HHmmss"), frameNumber, ext);
                     }
                     else if (imageType == "RECORDING")
                     {
-                        folderPath = recordingSessionFolder;
-                        fileName = string.Format("{0}_{1:D4}.fit", 
-                            recordingConfig.DestinationName, frameNumber);
+                        folderPath = cam.RecordingSessionFolder;
+                        string ext = cam.ImageFileFormat == "PNG" ? "png" : "fit";
+                        fileName = string.Format("{0}_{1:D4}.{2}", 
+                            cam.RecordingConfig != null ? cam.RecordingConfig.DestinationName : "Recording", 
+                            frameNumber, ext);
                     }
                     else // SINGLE
                     {
-                        folderPath = saveFolderPath;
+                        folderPath = cameraFolder;
                         
                         // Si es la primera captura de la sesión, buscar el último número usado
-                        if (singleFrameCounter == 0)
+                        if (cam.SingleFrameCounter == 0)
                         {
-                            singleFrameCounter = GetLastSingleFrameNumber(folderPath);
+                            cam.SingleFrameCounter = GetLastSingleFrameNumber(folderPath, cam.ImageFileFormat);
                         }
                         
-                        singleFrameCounter++;
+                        cam.SingleFrameCounter++;
                         DateTime now = DateTime.UtcNow;
-                        fileName = string.Format("Single_{0}_{1:D4}.fit", 
-                            now.ToString("yyyyMMdd_HHmmss"), singleFrameCounter);
+                        string ext = cam.ImageFileFormat == "PNG" ? "png" : "fit";
+                        fileName = string.Format("Single_{0}_{1:D4}.{2}", 
+                            now.ToString("yyyyMMdd_HHmmss"), cam.SingleFrameCounter, ext);
                     }
 
                     finalFilePath = Path.Combine(folderPath, fileName);
@@ -1531,11 +2103,20 @@ namespace SdkDemo08
                 // Si no se proporciona filePath, calcularlo
                 if (string.IsNullOrEmpty(finalFilePath))
                 {
+                    CameraState cam = GetCurrentCamera();
+                    
                     // Verificar que hay una carpeta seleccionada
-                    if (string.IsNullOrEmpty(saveFolderPath))
+                    if (string.IsNullOrEmpty(cam.SaveFolderPath))
                     {
                         Console.WriteLine("No se ha seleccionado carpeta de guardado.");
                         return;
+                    }
+
+                    // Asegurar que existe la carpeta de la cámara
+                    string cameraFolder = Path.Combine(cam.SaveFolderPath, cam.GetCameraFolderName());
+                    if (!Directory.Exists(cameraFolder))
+                    {
+                        Directory.CreateDirectory(cameraFolder);
                     }
 
                     // Determinar el nombre del archivo y la carpeta
@@ -1544,36 +2125,37 @@ namespace SdkDemo08
                     
                     if (imageType == "LIVE")
                     {
-                        if (string.IsNullOrEmpty(currentLiveSessionFolder))
+                        if (string.IsNullOrEmpty(cam.CurrentLiveSessionFolder))
                         {
                             Console.WriteLine("No hay carpeta de sesión activa para Live mode.");
                             return;
                         }
-                        folderPath = currentLiveSessionFolder;
+                        folderPath = cam.CurrentLiveSessionFolder;
                         DateTime now = DateTime.UtcNow;
                         fileName = string.Format("Live_{0}_{1:D3}.png", 
                             now.ToString("yyyyMMdd_HHmmss"), frameNumber);
                     }
                     else if (imageType == "RECORDING")
                     {
-                        folderPath = recordingSessionFolder;
+                        folderPath = cam.RecordingSessionFolder;
                         fileName = string.Format("{0}_{1:D4}.png", 
-                            recordingConfig.DestinationName, frameNumber);
+                            cam.RecordingConfig != null ? cam.RecordingConfig.DestinationName : "Recording", 
+                            frameNumber);
                     }
                     else // SINGLE
                     {
-                        folderPath = saveFolderPath;
+                        folderPath = cameraFolder;
                         
                         // Si es la primera captura de la sesión, buscar el último número usado
-                        if (singleFrameCounter == 0)
+                        if (cam.SingleFrameCounter == 0)
                         {
-                            singleFrameCounter = GetLastSingleFrameNumber(folderPath);
+                            cam.SingleFrameCounter = GetLastSingleFrameNumber(folderPath, cam.ImageFileFormat);
                         }
                         
-                        singleFrameCounter++;
+                        cam.SingleFrameCounter++;
                         DateTime now = DateTime.UtcNow;
                         fileName = string.Format("Single_{0}_{1:D4}.png", 
-                            now.ToString("yyyyMMdd_HHmmss"), singleFrameCounter);
+                            now.ToString("yyyyMMdd_HHmmss"), cam.SingleFrameCounter);
                     }
 
                     finalFilePath = Path.Combine(folderPath, fileName);
@@ -1796,6 +2378,149 @@ namespace SdkDemo08
             }
         }
 
+        /// <summary>
+        /// Captura maestra: captura simultánea en todas las cámaras seleccionadas
+        /// </summary>
+        unsafe private void btnMasterCapture_Click(object sender, EventArgs e)
+        {
+            // Obtener cámaras seleccionadas
+            List<int> selectedCameras = new List<int>();
+            for (int i = 0; i < 4; i++)
+            {
+                if (cameras[i].IsSelectedForMasterCapture && cameras[i].IsConnected)
+                {
+                    selectedCameras.Add(i);
+                }
+            }
+
+            if (selectedCameras.Count == 0)
+            {
+                MessageBox.Show("Por favor seleccione al menos una cámara para la captura maestra.");
+                return;
+            }
+
+            // Verificar que todas las cámaras seleccionadas tengan carpeta de guardado
+            CameraState currentCam = GetCurrentCamera();
+            if (string.IsNullOrEmpty(currentCam.SaveFolderPath))
+            {
+                MessageBox.Show("Por favor seleccione una carpeta de guardado primero.");
+                return;
+            }
+
+            // Crear carpetas para cada cámara si no existen
+            foreach (int camIndex in selectedCameras)
+            {
+                CameraState cam = cameras[camIndex];
+                string cameraFolder = Path.Combine(cam.SaveFolderPath, cam.GetCameraFolderName());
+                if (!Directory.Exists(cameraFolder))
+                {
+                    Directory.CreateDirectory(cameraFolder);
+                }
+                cam.SaveFolderPath = cameraFolder;
+            }
+
+            // Realizar captura simultánea en todas las cámaras seleccionadas
+            // Usar threads para captura simultánea
+            List<Thread> captureThreads = new List<Thread>();
+            
+            foreach (int camIndex in selectedCameras)
+            {
+                CameraState cam = cameras[camIndex];
+                int index = camIndex; // Capturar para closure
+                
+                Thread captureThread = new Thread(() =>
+                {
+                    try
+                    {
+                        PerformSingleCaptureForCamera(index);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("Error en captura de cámara {0}: {1}", index + 1, ex.Message);
+                    }
+                });
+                captureThreads.Add(captureThread);
+            }
+
+            // Iniciar todas las capturas simultáneamente
+            foreach (Thread thread in captureThreads)
+            {
+                thread.Start();
+            }
+
+            // Esperar a que todas terminen (opcional, puede ser asíncrono)
+            foreach (Thread thread in captureThreads)
+            {
+                thread.Join(5000); // Timeout de 5 segundos por cámara
+            }
+
+            MessageBox.Show(string.Format("Captura maestra completada en {0} cámara(s).", selectedCameras.Count));
+        }
+        
+        /// <summary>
+        /// Realiza una captura single para una cámara específica
+        /// </summary>
+        unsafe private void PerformSingleCaptureForCamera(int cameraIndex)
+        {
+            CameraState cam = cameras[cameraIndex];
+            
+            if (!cam.IsConnected || cam.CameraHandle == IntPtr.Zero)
+                return;
+
+            // Configurar cámara según sus parámetros guardados
+            ASCOM.QHYCCD.libqhyccd.SetQHYCCDStreamMode(cam.CameraHandle, 0); // Single frame mode
+            ASCOM.QHYCCD.libqhyccd.SetQHYCCDReadMode(cam.CameraHandle, cam.ReadMode);
+            ASCOM.QHYCCD.libqhyccd.InitQHYCCD(cam.CameraHandle);
+            ASCOM.QHYCCD.libqhyccd.SetQHYCCDBinMode(cam.CameraHandle, cam.BinX, cam.BinY);
+            ASCOM.QHYCCD.libqhyccd.SetQHYCCDResolution(cam.CameraHandle, cam.ImageStartX, cam.ImageStartY, cam.ImageSizeX, cam.ImageSizeY);
+            ASCOM.QHYCCD.libqhyccd.SetQHYCCDParam(cam.CameraHandle, CONTROL_ID.CONTROL_TRANSFERBIT, cam.ImageBits);
+            ASCOM.QHYCCD.libqhyccd.SetQHYCCDDebayerOnOff(cam.CameraHandle, cam.ColorOnOff);
+            ASCOM.QHYCCD.libqhyccd.SetQHYCCDParam(cam.CameraHandle, CONTROL_ID.CONTROL_EXPOSURE, cam.ExpTime);
+            ASCOM.QHYCCD.libqhyccd.SetQHYCCDParam(cam.CameraHandle, CONTROL_ID.CONTROL_GAIN, cam.Gain);
+            ASCOM.QHYCCD.libqhyccd.SetQHYCCDParam(cam.CameraHandle, CONTROL_ID.CONTROL_OFFSET, cam.Offset);
+            ASCOM.QHYCCD.libqhyccd.SetQHYCCDParam(cam.CameraHandle, CONTROL_ID.CONTROL_USBTRAFFIC, cam.Traffic);
+
+            // Iniciar exposición
+            ASCOM.QHYCCD.libqhyccd.ExpQHYCCDSingleFrame(cam.CameraHandle);
+
+            // Obtener frame
+            int retVal = -1;
+            uint width = 0, height = 0, bits = 0, channels = 0;
+            int memLength = ASCOM.QHYCCD.libqhyccd.GetQHYCCDMemLength(cam.CameraHandle);
+            byte[] rawArray = new byte[memLength];
+
+            while (retVal != 0)
+            {
+                retVal = ASCOM.QHYCCD.libqhyccd.C_GetQHYCCDSingleFrame(cam.CameraHandle, ref width, ref height, ref bits, ref channels, rawArray);
+            }
+
+            if (retVal == 0)
+            {
+                cam.CurImgWidth = width;
+                cam.CurImgHeight = height;
+                cam.CurImgBits = bits;
+                cam.CurImgChannels = channels;
+                cam.RawArray = rawArray;
+
+                // Incrementar contador
+                cam.SingleFrameCounter++;
+                if (cam.SingleFrameCounter == 0)
+                {
+                    cam.SingleFrameCounter = GetLastSingleFrameNumber(cam.SaveFolderPath, cam.ImageFileFormat);
+                }
+                cam.SingleFrameCounter++;
+
+                // Guardar imagen
+                DateTime now = DateTime.UtcNow;
+                string fileName = string.Format("Single_{0}_{1:D4}.{2}", 
+                    now.ToString("yyyyMMdd_HHmmss"), cam.SingleFrameCounter, 
+                    cam.ImageFileFormat == "PNG" ? "png" : "fit");
+                string filePath = Path.Combine(cam.SaveFolderPath, fileName);
+
+                SaveImageToFITS(rawArray, width, height, bits, channels, "SINGLE", cam.SingleFrameCounter, filePath);
+            }
+        }
+
         unsafe private void btnStartCap_Click(object sender, EventArgs e)
         {
             Console.WriteLine("Start Capture.***********************************************");
@@ -1815,7 +2540,10 @@ namespace SdkDemo08
             if (this.radioBtnSingle.Checked == true)
             {
                 // Verificar carpeta de guardado para modo Single
-                if (string.IsNullOrEmpty(saveFolderPath))
+                CameraState cam = GetCurrentCamera();
+                SyncCommonWithCurrentCamera(); // Asegurar que Common está sincronizado
+                
+                if (string.IsNullOrEmpty(cam.SaveFolderPath))
                 {
                     MessageBox.Show("Por favor seleccione una carpeta de guardado antes de iniciar la captura.", 
                         "Carpeta no seleccionada", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -1824,6 +2552,14 @@ namespace SdkDemo08
                     // Los radio buttons permanecen habilitados en caso de error
                     return;
                 }
+                
+                // Asegurar que existe la carpeta de la cámara
+                string cameraFolder = Path.Combine(cam.SaveFolderPath, cam.GetCameraFolderName());
+                if (!Directory.Exists(cameraFolder))
+                {
+                    Directory.CreateDirectory(cameraFolder);
+                }
+                cam.SaveFolderPath = cameraFolder;
 
                 this.btnStartCap.Enabled = false;
                 this.btnStopCap.Enabled = false;
