@@ -100,6 +100,7 @@
             this.btnSlave = new System.Windows.Forms.Button();
             this.radioBtnLive = new System.Windows.Forms.RadioButton();
             this.radioBtnSingle = new System.Windows.Forms.RadioButton();
+            this.radioBtnRecording = new System.Windows.Forms.RadioButton();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
             this.comBoxUnit = new System.Windows.Forms.ComboBox();
             this.trackBarUSBTraffic = new System.Windows.Forms.TrackBar();
@@ -1095,6 +1096,16 @@
             this.radioBtnLive.Text = "LiveMode";
             this.radioBtnLive.UseVisualStyleBackColor = true;
             // 
+            // radioBtnRecording
+            // 
+            this.radioBtnRecording.AutoSize = true;
+            this.radioBtnRecording.Location = new System.Drawing.Point(229, 3);
+            this.radioBtnRecording.Name = "radioBtnRecording";
+            this.radioBtnRecording.Size = new System.Drawing.Size(75, 16);
+            this.radioBtnRecording.TabIndex = 4;
+            this.radioBtnRecording.Text = "Recording";
+            this.radioBtnRecording.UseVisualStyleBackColor = true;
+            // 
             // radioBtnSingle
             // 
             this.radioBtnSingle.AutoSize = true;
@@ -1265,6 +1276,7 @@
             // 
             this.panelConnect.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.panelConnect.Controls.Add(this.radioBtnLive);
+            this.panelConnect.Controls.Add(this.radioBtnRecording);
             this.panelConnect.Controls.Add(this.Connection);
             this.panelConnect.Controls.Add(this.radioBtnSingle);
             this.panelConnect.Controls.Add(this.DisConnection);
@@ -2229,6 +2241,7 @@
         private System.Windows.Forms.TrackBar trackBarExp;
         private System.Windows.Forms.RadioButton radioBtnLive;
         private System.Windows.Forms.RadioButton radioBtnSingle;
+        private System.Windows.Forms.RadioButton radioBtnRecording;
         private System.Windows.Forms.TrackBar trackBarExpTime;
         private System.Windows.Forms.TrackBar trackBarTarget;
         private System.Windows.Forms.TrackBar trackBarTS;

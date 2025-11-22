@@ -67,6 +67,7 @@ namespace SdkDemo08
 
         Thread threadShowSingleImage;
         Thread threadShowLiveImage;
+        Thread threadRecording;
 
         Thread threadControlCooler;
 
@@ -79,12 +80,82 @@ namespace SdkDemo08
         uint singleFrameCounter = 0;
         DateTime liveSessionStartTime;
 
+        // Variables para modo Recording
+        bool isRecording = false;
+        bool isRecordingPaused = false;
+        RecordingConfigForm recordingConfig = null;
+        string recordingSessionFolder = "";
+        uint recordingFrameCounter = 0;
+        uint recordingSequenceCounter = 0;
+        DateTime recordingStartTime;
+        ProgressBar progressBarRecording;
+        Label labelRecordingProgress;
+        Button btnPauseResume;
+
         public Form1()
         {
             InitializeComponent();
             // Agregar event handlers para cambio de modo
             this.radioBtnSingle.CheckedChanged += new EventHandler(radioBtnSingle_CheckedChanged);
             this.radioBtnLive.CheckedChanged += new EventHandler(radioBtnLive_CheckedChanged);
+            this.radioBtnRecording.CheckedChanged += new EventHandler(radioBtnRecording_CheckedChanged);
+            
+            // Inicializar controles de grabación (barra de progreso y label)
+            InitializeRecordingControls();
+        }
+
+        private void InitializeRecordingControls()
+        {
+            // Barra de progreso en la parte inferior derecha
+            progressBarRecording = new ProgressBar();
+            UpdateRecordingControlsPosition();
+            progressBarRecording.Size = new System.Drawing.Size(200, 20);
+            progressBarRecording.Visible = false;
+            progressBarRecording.Minimum = 0;
+            progressBarRecording.Maximum = 100;
+            this.Controls.Add(progressBarRecording);
+            progressBarRecording.BringToFront();
+
+            // Label para mostrar progreso
+            labelRecordingProgress = new Label();
+            labelRecordingProgress.Size = new System.Drawing.Size(200, 20);
+            labelRecordingProgress.Visible = false;
+            labelRecordingProgress.Text = "";
+            this.Controls.Add(labelRecordingProgress);
+            labelRecordingProgress.BringToFront();
+
+            // Botón Pausa/Reanudar
+            btnPauseResume = new Button();
+            btnPauseResume.Size = new System.Drawing.Size(100, 25);
+            btnPauseResume.Text = "Pausa";
+            btnPauseResume.Visible = false;
+            btnPauseResume.Click += BtnPauseResume_Click;
+            this.Controls.Add(btnPauseResume);
+            btnPauseResume.BringToFront();
+
+            // Agregar event handler para resize
+            this.Resize += Form1_Resize;
+        }
+
+        private void UpdateRecordingControlsPosition()
+        {
+            if (progressBarRecording != null)
+            {
+                progressBarRecording.Location = new System.Drawing.Point(this.Width - 250, this.Height - 50);
+            }
+            if (labelRecordingProgress != null)
+            {
+                labelRecordingProgress.Location = new System.Drawing.Point(this.Width - 250, this.Height - 70);
+            }
+            if (btnPauseResume != null)
+            {
+                btnPauseResume.Location = new System.Drawing.Point(this.Width - 250, this.Height - 30);
+            }
+        }
+
+        private void Form1_Resize(object sender, EventArgs e)
+        {
+            UpdateRecordingControlsPosition();
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -961,6 +1032,7 @@ namespace SdkDemo08
             // Se deshabilitarán solo durante la captura activa
             this.radioBtnLive.Enabled = true;
             this.radioBtnSingle.Enabled = true;
+            this.radioBtnRecording.Enabled = true;
 
             this.Connection.Enabled = false;
             this.DisConnection.Enabled = true;
@@ -1117,6 +1189,7 @@ namespace SdkDemo08
             // (aunque no se usarán hasta que se conecte otra cámara)
             this.radioBtnLive.Enabled = true;
             this.radioBtnSingle.Enabled = true;
+            this.radioBtnRecording.Enabled = true;
 
             this.labelCamID.Text = "-";
             this.labelFW.Text = "-";
@@ -1242,50 +1315,56 @@ namespace SdkDemo08
         /// Guarda una imagen en formato FITS con los datos RAW
         /// </summary>
         unsafe private void SaveImageToFITS(byte[] rawData, uint width, uint height, 
-            uint bitsPerPixel, uint channels, string imageType, uint frameNumber = 0)
+            uint bitsPerPixel, uint channels, string imageType, uint frameNumber = 0, string filePath = null)
         {
             try
             {
-                // Verificar que hay una carpeta seleccionada
-                if (string.IsNullOrEmpty(saveFolderPath))
-                {
-                    Console.WriteLine("No se ha seleccionado carpeta de guardado.");
-                    return;
-                }
-
-                // Determinar el nombre del archivo y la carpeta
-                string fileName;
-                string folderPath;
+                string finalFilePath = filePath;
                 
-                if (imageType == "LIVE")
+                // Si no se proporciona filePath, calcularlo
+                if (string.IsNullOrEmpty(finalFilePath))
                 {
-                    if (string.IsNullOrEmpty(currentLiveSessionFolder))
+                    // Verificar que hay una carpeta seleccionada
+                    if (string.IsNullOrEmpty(saveFolderPath))
                     {
-                        Console.WriteLine("No hay carpeta de sesión activa para Live mode.");
+                        Console.WriteLine("No se ha seleccionado carpeta de guardado.");
                         return;
                     }
-                    folderPath = currentLiveSessionFolder;
-                    DateTime now = DateTime.UtcNow;
-                    fileName = string.Format("Live_{0}_{1:D3}.fit", 
-                        now.ToString("yyyyMMdd_HHmmss"), frameNumber);
-                }
-                else // SINGLE
-                {
-                    folderPath = saveFolderPath;
-                    
-                    // Si es la primera captura de la sesión, buscar el último número usado
-                    if (singleFrameCounter == 0)
-                    {
-                        singleFrameCounter = GetLastSingleFrameNumber(folderPath);
-                    }
-                    
-                    singleFrameCounter++;
-                    DateTime now = DateTime.UtcNow;
-                    fileName = string.Format("Single_{0}_{1:D4}.fit", 
-                        now.ToString("yyyyMMdd_HHmmss"), singleFrameCounter);
-                }
 
-                string filePath = Path.Combine(folderPath, fileName);
+                    // Determinar el nombre del archivo y la carpeta
+                    string fileName;
+                    string folderPath;
+                    
+                    if (imageType == "LIVE")
+                    {
+                        if (string.IsNullOrEmpty(currentLiveSessionFolder))
+                        {
+                            Console.WriteLine("No hay carpeta de sesión activa para Live mode.");
+                            return;
+                        }
+                        folderPath = currentLiveSessionFolder;
+                        DateTime now = DateTime.UtcNow;
+                        fileName = string.Format("Live_{0}_{1:D3}.fit", 
+                            now.ToString("yyyyMMdd_HHmmss"), frameNumber);
+                    }
+                    else // SINGLE o RECORDING
+                    {
+                        folderPath = saveFolderPath;
+                        
+                        // Si es la primera captura de la sesión, buscar el último número usado
+                        if (singleFrameCounter == 0)
+                        {
+                            singleFrameCounter = GetLastSingleFrameNumber(folderPath);
+                        }
+                        
+                        singleFrameCounter++;
+                        DateTime now = DateTime.UtcNow;
+                        fileName = string.Format("Single_{0}_{1:D4}.fit", 
+                            now.ToString("yyyyMMdd_HHmmss"), singleFrameCounter);
+                    }
+
+                    finalFilePath = Path.Combine(folderPath, fileName);
+                }
 
                 // Extraer solo los datos RAW necesarios (sin los 44 bytes de GPS si están presentes)
                 int rawDataSize = (int)(width * height * channels * (bitsPerPixel / 8));
@@ -1377,9 +1456,9 @@ namespace SdkDemo08
                 }
 
                 // Guardar archivo FITS
-                FITSWriter.WriteFITS(filePath, rawImageData, width, height, bitsPerPixel, channels, metadata);
+                FITSWriter.WriteFITS(finalFilePath, rawImageData, width, height, bitsPerPixel, channels, metadata);
                 
-                Console.WriteLine("Imagen guardada: {0}", filePath);
+                Console.WriteLine("Imagen guardada: {0}", finalFilePath);
             }
             catch (Exception ex)
             {
@@ -1425,6 +1504,7 @@ namespace SdkDemo08
                 // Deshabilitar los radio buttons durante la captura
                 this.radioBtnLive.Enabled = false;
                 this.radioBtnSingle.Enabled = false;
+                this.radioBtnRecording.Enabled = false;
 
                 ASCOM.QHYCCD.libqhyccd.ExpQHYCCDSingleFrame(Common.camHandle);
 
@@ -1544,6 +1624,7 @@ namespace SdkDemo08
                 // Habilitar los radio buttons después de completar la captura Single
                 this.radioBtnLive.Enabled = true;
                 this.radioBtnSingle.Enabled = true;
+                this.radioBtnRecording.Enabled = true;
             }
         }
 
@@ -2007,9 +2088,459 @@ namespace SdkDemo08
             Console.WriteLine("Thread Single Has Quit.");
         }
 
+        /****************************************************************************/
+        /************************** Recording Mode Functions ***********************/
+        /****************************************************************************/
+
+        private void StartRecording()
+        {
+            if (recordingConfig == null || isRecording)
+                return;
+
+            // Inicializar contadores
+            recordingFrameCounter = 0;
+            recordingSequenceCounter = 0;
+            recordingStartTime = DateTime.UtcNow;
+            isRecording = true;
+            isRecordingPaused = false;
+
+            // Mostrar controles de grabación
+            // Nota: No deshabilitamos los radio buttons para permitir cambio de modo
+            // pero sí deshabilitamos Start Capture ya que Recording maneja sus propias capturas
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action(() =>
+                {
+                    progressBarRecording.Visible = true;
+                    labelRecordingProgress.Visible = true;
+                    btnPauseResume.Visible = true;
+                    btnPauseResume.Text = "Pausa";
+                    this.btnStartCap.Enabled = false; // Deshabilitar Start Capture durante Recording
+                    this.btnStopCap.Enabled = true; // Habilitar Stop para cancelar Recording
+                    // Los radio buttons permanecen habilitados para permitir cambio de modo
+                }));
+            }
+            else
+            {
+                progressBarRecording.Visible = true;
+                labelRecordingProgress.Visible = true;
+                btnPauseResume.Visible = true;
+                btnPauseResume.Text = "Pausa";
+                this.btnStartCap.Enabled = false;
+                this.btnStopCap.Enabled = true;
+            }
+
+            // Iniciar thread de grabación
+            quit = false;
+            hasquit = false;
+            threadRecording = new Thread(new ParameterizedThreadStart(RecordingThread));
+            threadRecording.Start();
+            
+            Console.WriteLine("Grabación iniciada");
+        }
+
+        private void BtnPauseResume_Click(object sender, EventArgs e)
+        {
+            if (!isRecording)
+                return;
+
+            isRecordingPaused = !isRecordingPaused;
+            
+            if (isRecordingPaused)
+            {
+                btnPauseResume.Text = "Reanudar";
+                Console.WriteLine("Grabación pausada");
+            }
+            else
+            {
+                btnPauseResume.Text = "Pausa";
+                Console.WriteLine("Grabación reanudada");
+            }
+        }
+
+        unsafe void RecordingThread(object obj)
+        {
+            Console.WriteLine("Recording thread iniciado");
+            
+            uint totalFramesInSession = 0;
+            uint currentSequence = 0;
+            DateTime sessionStartTime = DateTime.MinValue;
+            TimeSpan remainingTime = TimeSpan.Zero;
+
+            while (quit != true && isRecording)
+            {
+                // Manejar secuencia simple
+                if (recordingConfig.UseSequence)
+                {
+                    if (currentSequence == 0)
+                    {
+                        // Iniciar nueva secuencia
+                        currentSequence = 1;
+                        sessionStartTime = DateTime.UtcNow;
+                        recordingFrameCounter = 0;
+                        totalFramesInSession = 0;
+                        Console.WriteLine("Iniciando secuencia {0}/{1}", currentSequence, recordingConfig.SequenceLength);
+                    }
+                    else if (currentSequence < recordingConfig.SequenceLength)
+                    {
+                        // Verificar si debemos esperar intervalo entre secuencias
+                        // (esto se maneja después de completar una sesión)
+                    }
+                }
+                else
+                {
+                    // Sin secuencia, solo una sesión
+                    if (sessionStartTime == DateTime.MinValue)
+                    {
+                        sessionStartTime = DateTime.UtcNow;
+                        recordingFrameCounter = 0;
+                    }
+                }
+
+                // Verificar límites de la sesión actual
+                bool sessionComplete = false;
+                
+                if (recordingConfig.LimitType == RecordingLimitType.FrameCount)
+                {
+                    if (recordingFrameCounter >= recordingConfig.FrameCount)
+                    {
+                        sessionComplete = true;
+                    }
+                }
+                else if (recordingConfig.LimitType == RecordingLimitType.TimeLimit)
+                {
+                    TimeSpan elapsed = DateTime.UtcNow - sessionStartTime;
+                    remainingTime = recordingConfig.TimeLimit - elapsed;
+                    if (remainingTime <= TimeSpan.Zero)
+                    {
+                        sessionComplete = true;
+                    }
+                }
+                // Unlimited: nunca se completa automáticamente
+
+                if (sessionComplete && !recordingConfig.UseSequence)
+                {
+                    // Sesión completa y no hay secuencia, terminar
+                    break;
+                }
+                else if (sessionComplete && recordingConfig.UseSequence)
+                {
+                    // Sesión completa, avanzar a siguiente secuencia
+                    currentSequence++;
+                    if (currentSequence > recordingConfig.SequenceLength)
+                    {
+                        // Todas las secuencias completadas
+                        break;
+                    }
+                    
+                    // Esperar intervalo entre secuencias
+                    Console.WriteLine("Esperando intervalo de {0} antes de iniciar secuencia {1}/{2}", 
+                        recordingConfig.SequenceInterval, currentSequence, recordingConfig.SequenceLength);
+                    
+                    DateTime intervalStart = DateTime.UtcNow;
+                    while ((DateTime.UtcNow - intervalStart) < recordingConfig.SequenceInterval && quit != true && isRecording)
+                    {
+                        if (!isRecordingPaused)
+                        {
+                            System.Threading.Thread.Sleep(100);
+                        }
+                        Application.DoEvents();
+                    }
+                    
+                    // Iniciar nueva secuencia
+                    sessionStartTime = DateTime.UtcNow;
+                    recordingFrameCounter = 0;
+                    totalFramesInSession = 0;
+                    Console.WriteLine("Iniciando secuencia {0}/{1}", currentSequence, recordingConfig.SequenceLength);
+                }
+
+                // Esperar si está pausado
+                while (isRecordingPaused && quit != true && isRecording)
+                {
+                    System.Threading.Thread.Sleep(100);
+                    Application.DoEvents();
+                }
+
+                if (quit || !isRecording)
+                    break;
+
+                // Tomar captura
+                ASCOM.QHYCCD.libqhyccd.ExpQHYCCDSingleFrame(Common.camHandle);
+
+                retVal = -1;
+                while (retVal != 0 && quit != true && isRecording)
+                {
+                    retVal = ASCOM.QHYCCD.libqhyccd.C_GetQHYCCDSingleFrame(Common.camHandle, ref Common.camCurImgWidth, ref Common.camCurImgHeight, ref Common.camCurImgBits, ref Common.camCurImgChannels, rawArray);
+                    Application.DoEvents();
+                }
+
+                if (retVal == 0 && !quit && isRecording)
+                {
+                    recordingFrameCounter++;
+                    totalFramesInSession++;
+                    
+                    // Mostrar preview solo si NO está en modo Live (Live mode ya muestra el preview automáticamente)
+                    // Si está en modo Live, el preview se muestra desde ShowLiveImage thread
+                    if (!this.radioBtnLive.Checked)
+                    {
+                        // Procesar y mostrar imagen cuando no está en modo Live
+                        ProcessAndDisplayImage();
+                    }
+                    // Si está en modo Live, el preview ya se está mostrando desde ShowLiveImage
+
+                    // Guardar archivo FITS
+                    DateTime now = DateTime.UtcNow;
+                    string fileName = string.Format("{0}_{1:D4}.fit", 
+                        recordingConfig.DestinationName, recordingFrameCounter);
+                    string filePath = Path.Combine(recordingSessionFolder, fileName);
+                    
+                    SaveImageToFITS(rawArray, Common.camCurImgWidth, Common.camCurImgHeight, 
+                        Common.camCurImgBits, Common.camCurImgChannels, "RECORDING", recordingFrameCounter, filePath);
+
+                    // Actualizar progreso
+                    UpdateRecordingProgress(recordingConfig, recordingFrameCounter, totalFramesInSession, 
+                        currentSequence, sessionStartTime, remainingTime);
+                }
+
+                Application.DoEvents();
+            }
+
+            // Finalizar grabación
+            StopRecording();
+            hasquit = true;
+            Console.WriteLine("Recording thread finalizado");
+        }
+
+        unsafe private void ProcessAndDisplayImage()
+        {
+            // Procesar y mostrar imagen en pictureBox (similar a ShowSingleImage)
+            try
+            {
+                // Calcular offset para GPS si está activo
+                int gpsOffset = 0;
+                if (this.btnGPSOnOff != null && this.btnGPSOnOff.Text == "OFF")
+                {
+                    gpsOffset = 44;
+                }
+
+                // Crear bitmap
+                Bitmap displayBitmap = new Bitmap((int)Common.camCurImgWidth, (int)Common.camCurImgHeight, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                Rectangle displayRectangle = new Rectangle(0, 0, (int)Common.camCurImgWidth, (int)Common.camCurImgHeight);
+                BitmapData displayBmpData = displayBitmap.LockBits(displayRectangle, ImageLockMode.ReadWrite, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                IntPtr displayPtr = displayBmpData.Scan0;
+
+                int s = 0;
+                int index = gpsOffset;
+                Byte[] displayRgbArray = new Byte[Common.camCurImgWidth * Common.camCurImgHeight * 4];
+                
+                for (int i = 0; i < Common.camCurImgHeight; i++)
+                {
+                    for (int y = 0; y < Common.camCurImgWidth; y++)
+                    {
+                        if (Common.camCurImgBits == 8 && Common.camCurImgChannels == 1)
+                        {
+                            displayRgbArray[s] = rawArray[index];
+                            displayRgbArray[s + 1] = rawArray[index];
+                            displayRgbArray[s + 2] = rawArray[index];
+                            displayRgbArray[s + 3] = 255;
+                            s += 4;
+                            index += 1;
+                        }
+                        else if (Common.camCurImgBits == 8 && Common.camCurImgChannels == 3)
+                        {
+                            displayRgbArray[s] = rawArray[index];
+                            displayRgbArray[s + 1] = rawArray[index + 1];
+                            displayRgbArray[s + 2] = rawArray[index + 2];
+                            displayRgbArray[s + 3] = 255;
+                            s += 4;
+                            index += 3;
+                        }
+                        else if (Common.camCurImgBits == 16 && Common.camCurImgChannels == 1)
+                        {
+                            displayRgbArray[s] = rawArray[index + 1];
+                            displayRgbArray[s + 1] = rawArray[index + 1];
+                            displayRgbArray[s + 2] = rawArray[index + 1];
+                            displayRgbArray[s + 3] = 255;
+                            s += 4;
+                            index += 2;
+                        }
+                        else if (Common.camCurImgBits == 16 && Common.camCurImgChannels == 3)
+                        {
+                            displayRgbArray[s] = rawArray[index + 1];
+                            displayRgbArray[s + 1] = rawArray[index + 3];
+                            displayRgbArray[s + 2] = rawArray[index + 5];
+                            displayRgbArray[s + 3] = 255;
+                            s += 4;
+                            index += 6;
+                        }
+                    }
+                }
+
+                Marshal.Copy(displayRgbArray, 0, displayPtr, (int)(Common.camCurImgWidth * Common.camCurImgHeight * 4));
+                displayBitmap.UnlockBits(displayBmpData);
+
+                // Actualizar pictureBox desde el thread principal usando Invoke
+                if (this.InvokeRequired)
+                {
+                    UpdatePictureBoxCallBack updateCallback = new UpdatePictureBoxCallBack(UpdatePictureBox);
+                    this.Invoke(updateCallback, new object[] { displayBitmap });
+                }
+                else
+                {
+                    UpdatePictureBox(displayBitmap);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error al procesar imagen para display: {0}", ex.Message);
+            }
+        }
+
+        private void UpdateRecordingProgress(RecordingConfigForm config, uint currentFrame, uint totalFrames, 
+            uint currentSequence, DateTime sessionStart, TimeSpan remaining)
+        {
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action(() => UpdateRecordingProgressUI(config, currentFrame, totalFrames, 
+                    currentSequence, sessionStart, remaining)));
+            }
+            else
+            {
+                UpdateRecordingProgressUI(config, currentFrame, totalFrames, currentSequence, sessionStart, remaining);
+            }
+        }
+
+        private void UpdateRecordingProgressUI(RecordingConfigForm config, uint currentFrame, uint totalFrames, 
+            uint currentSequence, DateTime sessionStart, TimeSpan remaining)
+        {
+            string progressText = "";
+            int progressValue = 0;
+
+            if (config.LimitType == RecordingLimitType.Unlimited)
+            {
+                progressText = string.Format("Frames: {0}", currentFrame);
+                progressValue = 0; // Sin límite, no mostrar porcentaje
+            }
+            else if (config.LimitType == RecordingLimitType.FrameCount)
+            {
+                progressValue = (int)((currentFrame * 100) / config.FrameCount);
+                if (config.UseSequence)
+                {
+                    progressText = string.Format("Secuencia {0}/{1} - Frame {2}/{3}", 
+                        currentSequence, config.SequenceLength, currentFrame, config.FrameCount);
+                }
+                else
+                {
+                    progressText = string.Format("Frame {0}/{1}", currentFrame, config.FrameCount);
+                }
+            }
+            else if (config.LimitType == RecordingLimitType.TimeLimit)
+            {
+                if (remaining > TimeSpan.Zero)
+                {
+                    progressText = string.Format("Tiempo restante: {0:D2}:{1:D2}:{2:D2}", 
+                        remaining.Hours, remaining.Minutes, remaining.Seconds);
+                }
+                else
+                {
+                    progressText = "Tiempo agotado";
+                }
+                
+                if (config.TimeLimit.TotalSeconds > 0)
+                {
+                    TimeSpan elapsed = DateTime.UtcNow - sessionStart;
+                    progressValue = (int)((elapsed.TotalSeconds * 100) / config.TimeLimit.TotalSeconds);
+                    if (progressValue > 100) progressValue = 100;
+                }
+                
+                if (config.UseSequence)
+                {
+                    progressText += string.Format(" - Secuencia {0}/{1}", currentSequence, config.SequenceLength);
+                }
+            }
+
+            labelRecordingProgress.Text = progressText;
+            progressBarRecording.Value = progressValue;
+        }
+
+        private void StopRecording()
+        {
+            isRecording = false;
+            isRecordingPaused = false;
+            quit = true;
+
+            // Esperar a que el thread termine
+            if (threadRecording != null && threadRecording.IsAlive)
+            {
+                while (hasquit != true)
+                {
+                    Application.DoEvents();
+                }
+                threadRecording.Abort();
+            }
+
+            // Ocultar controles de grabación
+            if (this.InvokeRequired)
+            {
+                this.Invoke(new Action(() =>
+                {
+                    progressBarRecording.Visible = false;
+                    labelRecordingProgress.Visible = false;
+                    btnPauseResume.Visible = false;
+                    // Restaurar estado de botones según el modo actual
+                    if (this.radioBtnSingle.Checked)
+                    {
+                        this.btnStartCap.Enabled = true;
+                        this.btnStopCap.Enabled = false;
+                    }
+                    else if (this.radioBtnLive.Checked)
+                    {
+                        this.btnStartCap.Enabled = false;
+                        this.btnStopCap.Enabled = false;
+                    }
+                    else
+                    {
+                        this.btnStartCap.Enabled = true;
+                        this.btnStopCap.Enabled = false;
+                    }
+                }));
+            }
+            else
+            {
+                progressBarRecording.Visible = false;
+                labelRecordingProgress.Visible = false;
+                btnPauseResume.Visible = false;
+                // Restaurar estado de botones según el modo actual
+                if (this.radioBtnSingle.Checked)
+                {
+                    this.btnStartCap.Enabled = true;
+                    this.btnStopCap.Enabled = false;
+                }
+                else if (this.radioBtnLive.Checked)
+                {
+                    this.btnStartCap.Enabled = false;
+                    this.btnStopCap.Enabled = false;
+                }
+                else
+                {
+                    this.btnStartCap.Enabled = true;
+                    this.btnStopCap.Enabled = false;
+                }
+            }
+
+            Console.WriteLine("Grabación detenida");
+        }
+
         private void btnStopCap_Click(object sender, EventArgs e)
         {
             Console.WriteLine("Stop Capture.***********************************************");
+
+            // Si está en modo Recording, detener grabación
+            if (this.radioBtnRecording.Checked && isRecording)
+            {
+                StopRecording();
+                return;
+            }
 
             this.DisConnection.Enabled = false;
             this.btnStopCap.Enabled = false;
@@ -2026,9 +2557,15 @@ namespace SdkDemo08
             this.DisConnection.Enabled = true;
 
             if (Common.canLive == true)
-                threadShowLiveImage.Abort();
+            {
+                if (threadShowLiveImage != null && threadShowLiveImage.IsAlive)
+                    threadShowLiveImage.Abort();
+            }
             else
-                threadShowSingleImage.Abort();
+            {
+                if (threadShowSingleImage != null && threadShowSingleImage.IsAlive)
+                    threadShowSingleImage.Abort();
+            }
 
             if (Common.canLive == true)
             {
@@ -2060,6 +2597,7 @@ namespace SdkDemo08
             // Habilitar los radio buttons después de detener la captura
             this.radioBtnLive.Enabled = true;
             this.radioBtnSingle.Enabled = true;
+            this.radioBtnRecording.Enabled = true;
         }
 
         /****************************************************************************/
@@ -2125,6 +2663,12 @@ namespace SdkDemo08
             if (this.radioBtnLive.Checked && Common.canLive)
             {
                 return false; // Modo Live no está "capturando", solo haciendo preview
+            }
+            
+            // Si está grabando en modo Recording
+            if (this.radioBtnRecording.Checked && isRecording)
+            {
+                return true;
             }
             
             // Si btnStopCap está habilitado, significa que está capturando (solo en modo Single)
@@ -2296,6 +2840,14 @@ namespace SdkDemo08
                 return;
             }
 
+            // Si está grabando, detener grabación antes de cambiar de modo
+            if (isRecording)
+            {
+                StopRecording();
+                // Esperar un momento para que se detenga completamente
+                System.Threading.Thread.Sleep(200);
+            }
+
             // Si está capturando, mostrar mensaje y revertir el cambio
             if (IsCapturing())
             {
@@ -2341,6 +2893,14 @@ namespace SdkDemo08
                 return;
             }
 
+            // Si está grabando, detener grabación antes de cambiar de modo
+            if (isRecording)
+            {
+                StopRecording();
+                // Esperar un momento para que se detenga completamente
+                System.Threading.Thread.Sleep(200);
+            }
+
             // Si está capturando, mostrar mensaje y revertir el cambio
             if (IsCapturing())
             {
@@ -2367,6 +2927,98 @@ namespace SdkDemo08
 
             // Cambiar al modo Live
             ChangeCaptureMode(1);
+        }
+
+        /// <summary>
+        /// Event handler para cuando se cambia el radio button Recording
+        /// </summary>
+        private void radioBtnRecording_CheckedChanged(object sender, EventArgs e)
+        {
+            // Evitar recursión si ya estamos cambiando el modo
+            if (isChangingMode)
+            {
+                return;
+            }
+
+            // Solo procesar si el radio button está marcado y la cámara está conectada
+            if (!this.radioBtnRecording.Checked || !isConnect)
+            {
+                return;
+            }
+
+            // Si está grabando, detener grabación antes de cambiar de modo
+            if (isRecording)
+            {
+                StopRecording();
+                // Esperar un momento para que se detenga completamente
+                System.Threading.Thread.Sleep(200);
+            }
+
+            // Si está capturando (Single mode), mostrar mensaje y revertir el cambio
+            if (IsCapturing())
+            {
+                isChangingMode = true;
+                this.radioBtnRecording.Checked = false;
+                this.radioBtnSingle.Checked = true;
+                isChangingMode = false;
+                MessageBox.Show("No se puede cambiar el modo mientras se está capturando. Por favor, detenga la captura primero.", 
+                    "Cambio de modo no permitido", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Verificar que haya carpeta de guardado seleccionada
+            if (string.IsNullOrEmpty(saveFolderPath))
+            {
+                isChangingMode = true;
+                this.radioBtnRecording.Checked = false;
+                this.radioBtnSingle.Checked = true;
+                isChangingMode = false;
+                MessageBox.Show("Por favor seleccione una carpeta de guardado antes de usar el modo Recording.", 
+                    "Carpeta no seleccionada", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Mostrar ventana de configuración de grabación
+            RecordingConfigForm configForm = new RecordingConfigForm();
+            if (configForm.ShowDialog() == DialogResult.OK && configForm.DialogResultOK)
+            {
+                recordingConfig = configForm;
+                
+                // Crear carpeta de sesión de grabación
+                DateTime sessionStartTime = DateTime.UtcNow;
+                string sessionFolderName = configForm.DestinationName + "_" + sessionStartTime.ToString("yyyyMMdd_HHmmss");
+                recordingSessionFolder = Path.Combine(saveFolderPath, sessionFolderName);
+                
+                try
+                {
+                    if (!Directory.Exists(recordingSessionFolder))
+                    {
+                        Directory.CreateDirectory(recordingSessionFolder);
+                        Console.WriteLine("Carpeta de sesión de grabación creada: {0}", recordingSessionFolder);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Error al crear carpeta de sesión: " + ex.Message, 
+                        "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    isChangingMode = true;
+                    this.radioBtnRecording.Checked = false;
+                    this.radioBtnSingle.Checked = true;
+                    isChangingMode = false;
+                    return;
+                }
+
+                // Iniciar grabación
+                StartRecording();
+            }
+            else
+            {
+                // Usuario canceló, volver a Single mode
+                isChangingMode = true;
+                this.radioBtnRecording.Checked = false;
+                this.radioBtnSingle.Checked = true;
+                isChangingMode = false;
+            }
         }
 
         /****************************************************************************/

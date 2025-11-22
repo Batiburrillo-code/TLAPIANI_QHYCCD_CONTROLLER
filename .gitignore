@@ -1,5 +1,42 @@
-# Visual Studio
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio cache/options directory
 .vs/
+.vscode/
+
+# Visual Studio profiler
+*.psess
+*.vsp
+*.vspx
+*.sap
+
+# Visual Studio Trace Files
+*.e2e
+
+# TFS 2012 Local Workspace
+$tf/
+
+# ReSharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# User-specific files
+*.rsuser
 *.suo
 *.user
 *.userosscache
@@ -7,22 +44,50 @@
 
 # Build results
 [Dd]ebug/
+[Dd]ebugPublic/
 [Rr]elease/
+[Rr]eleases/
 x64/
 x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
 [Bb]in/
 [Oo]bj/
-[Dd]ebug.b/
-*.pdb
+[Ll]og/
+[Ll]ogs/
 
-# Visual Studio cache/options
+# Visual Studio cache/options directory
+.vs/
+.vscode/
+
+# Visual Studio profiler
+*.psess
+*.vsp
+*.vspx
+*.sap
+
+# Visual Studio Trace Files
+*.e2e
+
+# TFS 2012 Local Workspace
+$tf/
+
+# ReSharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# User-specific files
+*.rsuser
 *.suo
 *.user
+*.userosscache
 *.sln.docstates
 
-# Backup files
+# Backup folder
 Backup/
 
-# Logs
-*.log
-
+# Upgrade log
+UpgradeLog.htm
