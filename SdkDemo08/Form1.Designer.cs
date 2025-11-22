@@ -111,6 +111,8 @@
             this.label10 = new System.Windows.Forms.Label();
             this.comBoxReadMode = new System.Windows.Forms.ComboBox();
             this.label9 = new System.Windows.Forms.Label();
+            this.labelFileFormat = new System.Windows.Forms.Label();
+            this.comBoxFileFormat = new System.Windows.Forms.ComboBox();
             this.btnHeadConnect = new System.Windows.Forms.Button();
             this.pictureBox1 = new System.Windows.Forms.PictureBox();
             this.panelConnect = new System.Windows.Forms.Panel();
@@ -1213,17 +1215,42 @@
             this.comBoxBits.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.comBoxBits.Enabled = false;
             this.comBoxBits.FormattingEnabled = true;
-            this.comBoxBits.Location = new System.Drawing.Point(61, 74);
+            this.comBoxBits.Location = new System.Drawing.Point(61, 102);
             this.comBoxBits.Name = "comBoxBits";
             this.comBoxBits.Size = new System.Drawing.Size(173, 20);
             this.comBoxBits.TabIndex = 28;
             this.comBoxBits.SelectedIndexChanged += new System.EventHandler(this.comBoxBits_SelectedIndexChanged);
             // 
+            // labelFileFormat
+            // 
+            this.labelFileFormat.AutoSize = true;
+            this.labelFileFormat.Enabled = false;
+            this.labelFileFormat.Location = new System.Drawing.Point(5, 22);
+            this.labelFileFormat.Name = "labelFileFormat";
+            this.labelFileFormat.Size = new System.Drawing.Size(65, 12);
+            this.labelFileFormat.TabIndex = 29;
+            this.labelFileFormat.Text = "File Format";
+            // 
+            // comBoxFileFormat
+            // 
+            this.comBoxFileFormat.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.comBoxFileFormat.Enabled = false;
+            this.comBoxFileFormat.FormattingEnabled = true;
+            this.comBoxFileFormat.Items.AddRange(new object[] {
+            "FITS",
+            "PNG"});
+            this.comBoxFileFormat.Location = new System.Drawing.Point(61, 18);
+            this.comBoxFileFormat.Name = "comBoxFileFormat";
+            this.comBoxFileFormat.Size = new System.Drawing.Size(173, 20);
+            this.comBoxFileFormat.TabIndex = 30;
+            this.comBoxFileFormat.SelectedIndex = 0;
+            this.comBoxFileFormat.SelectedIndexChanged += new System.EventHandler(this.comBoxFileFormat_SelectedIndexChanged);
+            // 
             // label10
             // 
             this.label10.AutoSize = true;
             this.label10.Enabled = false;
-            this.label10.Location = new System.Drawing.Point(5, 22);
+            this.label10.Location = new System.Drawing.Point(5, 50);
             this.label10.Name = "label10";
             this.label10.Size = new System.Drawing.Size(53, 12);
             this.label10.TabIndex = 27;
@@ -1234,7 +1261,7 @@
             this.comBoxReadMode.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.comBoxReadMode.Enabled = false;
             this.comBoxReadMode.FormattingEnabled = true;
-            this.comBoxReadMode.Location = new System.Drawing.Point(61, 18);
+            this.comBoxReadMode.Location = new System.Drawing.Point(61, 46);
             this.comBoxReadMode.Name = "comBoxReadMode";
             this.comBoxReadMode.Size = new System.Drawing.Size(173, 20);
             this.comBoxReadMode.TabIndex = 26;
@@ -1244,7 +1271,7 @@
             // 
             this.label9.AutoSize = true;
             this.label9.Enabled = false;
-            this.label9.Location = new System.Drawing.Point(15, 78);
+            this.label9.Location = new System.Drawing.Point(15, 106);
             this.label9.Name = "label9";
             this.label9.Size = new System.Drawing.Size(29, 12);
             this.label9.TabIndex = 25;
@@ -1837,7 +1864,7 @@
             this.panelParam.Controls.Add(this.groupBox10);
             this.panelParam.Location = new System.Drawing.Point(4, 217);
             this.panelParam.Name = "panelParam";
-            this.panelParam.Size = new System.Drawing.Size(247, 270);
+            this.panelParam.Size = new System.Drawing.Size(247, 294);
             this.panelParam.TabIndex = 5;
             // 
             // groupBox10
@@ -1848,10 +1875,12 @@
             this.groupBox10.Controls.Add(this.comBoxReadMode);
             this.groupBox10.Controls.Add(this.label10);
             this.groupBox10.Controls.Add(this.comBoxBinMode);
+            this.groupBox10.Controls.Add(this.labelFileFormat);
+            this.groupBox10.Controls.Add(this.comBoxFileFormat);
             this.groupBox10.Font = new System.Drawing.Font("宋体", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
             this.groupBox10.Location = new System.Drawing.Point(3, 4);
             this.groupBox10.Name = "groupBox10";
-            this.groupBox10.Size = new System.Drawing.Size(240, 102);
+            this.groupBox10.Size = new System.Drawing.Size(240, 126);
             this.groupBox10.TabIndex = 54;
             this.groupBox10.TabStop = false;
             this.groupBox10.Text = "Image Format";
@@ -1861,7 +1890,7 @@
             this.label22.AutoSize = true;
             this.label22.Enabled = false;
             this.label22.Font = new System.Drawing.Font("宋体", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
-            this.label22.Location = new System.Drawing.Point(15, 50);
+            this.label22.Location = new System.Drawing.Point(15, 78);
             this.label22.Name = "label22";
             this.label22.Size = new System.Drawing.Size(23, 12);
             this.label22.TabIndex = 8;
@@ -1878,7 +1907,7 @@
             "2X2",
             "3X3",
             "4X4"});
-            this.comBoxBinMode.Location = new System.Drawing.Point(61, 46);
+            this.comBoxBinMode.Location = new System.Drawing.Point(61, 74);
             this.comBoxBinMode.Name = "comBoxBinMode";
             this.comBoxBinMode.Size = new System.Drawing.Size(173, 20);
             this.comBoxBinMode.TabIndex = 2;
@@ -2265,6 +2294,8 @@
         private System.Windows.Forms.Label label9;
         private System.Windows.Forms.ComboBox comBoxReadMode;
         private System.Windows.Forms.Label label10;
+        private System.Windows.Forms.Label labelFileFormat;
+        private System.Windows.Forms.ComboBox comBoxFileFormat;
         private System.Windows.Forms.NumericUpDown numUDPB9;
         private System.Windows.Forms.NumericUpDown numUDPA9;
         private System.Windows.Forms.ComboBox comBoxBits;

@@ -237,7 +237,7 @@ namespace SdkDemo08
         private void BtnStart_Click(object sender, EventArgs e)
         {
             // Validaciones
-            if (string.IsNullOrWhiteSpace(textBoxDestinationName.Text))
+            if (string.IsNullOrEmpty(textBoxDestinationName.Text) || textBoxDestinationName.Text.Trim().Length == 0)
             {
                 MessageBox.Show("Por favor ingrese un nombre de destino.", "Error de validación", 
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);

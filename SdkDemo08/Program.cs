@@ -13,9 +13,17 @@ namespace SdkDemo08
         [STAThread]
         static void Main()
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Form1());
+            try
+            {
+                Application.EnableVisualStyles();
+                Application.SetCompatibleTextRenderingDefault(false);
+                Application.Run(new Form1());
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error fatal al iniciar la aplicación:\n\n" + ex.Message + "\n\n" + ex.StackTrace, 
+                    "Error Crítico", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
        
     }

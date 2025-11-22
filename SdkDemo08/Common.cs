@@ -77,5 +77,7 @@ namespace SdkDemo08
         public static bool burstCap;
         public static uint burstCapNum;
         public static uint burstCapTarget;
+
+        public static string imageFileFormat = "FITS"; // "FITS" or "PNG"
     }
 }

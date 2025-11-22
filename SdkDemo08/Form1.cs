@@ -94,14 +94,23 @@ namespace SdkDemo08
 
         public Form1()
         {
-            InitializeComponent();
-            // Agregar event handlers para cambio de modo
-            this.radioBtnSingle.CheckedChanged += new EventHandler(radioBtnSingle_CheckedChanged);
-            this.radioBtnLive.CheckedChanged += new EventHandler(radioBtnLive_CheckedChanged);
-            this.radioBtnRecording.CheckedChanged += new EventHandler(radioBtnRecording_CheckedChanged);
-            
-            // Inicializar controles de grabación (barra de progreso y label)
-            InitializeRecordingControls();
+            try
+            {
+                InitializeComponent();
+                // Agregar event handlers para cambio de modo
+                this.radioBtnSingle.CheckedChanged += new EventHandler(radioBtnSingle_CheckedChanged);
+                this.radioBtnLive.CheckedChanged += new EventHandler(radioBtnLive_CheckedChanged);
+                this.radioBtnRecording.CheckedChanged += new EventHandler(radioBtnRecording_CheckedChanged);
+                
+                // Inicializar controles de grabación (barra de progreso y label)
+                InitializeRecordingControls();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error al inicializar el formulario:\n\n" + ex.Message + "\n\n" + ex.StackTrace, 
+                    "Error de Inicialización", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                throw; // Re-lanzar para que el Application.Run pueda manejarlo
+            }
         }
 
         private void InitializeRecordingControls()
@@ -429,6 +438,11 @@ namespace SdkDemo08
                 this.label10.Enabled = true;
                 this.comBoxReadMode.Enabled = true;
             }
+
+            // Habilitar selector de formato de archivo
+            this.labelFileFormat.Enabled = true;
+            this.comBoxFileFormat.Enabled = true;
+            Common.imageFileFormat = this.comBoxFileFormat.SelectedItem != null ? this.comBoxFileFormat.SelectedItem.ToString() : "FITS";
 
             //isSetupUI = false;
 
@@ -1221,6 +1235,15 @@ namespace SdkDemo08
             this.comBoxBits.Enabled = false;
             this.comBoxBits.Items.Clear();
 
+            if (this.labelFileFormat != null)
+            {
+                this.labelFileFormat.Enabled = false;
+            }
+            if (this.comBoxFileFormat != null)
+            {
+                this.comBoxFileFormat.Enabled = false;
+            }
+
             this.label22.Enabled = false;
             this.comBoxBinMode.Enabled = false;
             this.comBoxBinMode.Items.Clear();
@@ -1312,9 +1335,32 @@ namespace SdkDemo08
         /******************************************************************/
         
         /// <summary>
-        /// Guarda una imagen en formato FITS con los datos RAW
+        /// Guarda una imagen en el formato seleccionado (FITS o PNG)
         /// </summary>
         unsafe private void SaveImageToFITS(byte[] rawData, uint width, uint height, 
+            uint bitsPerPixel, uint channels, string imageType, uint frameNumber = 0, string filePath = null)
+        {
+            // Usar el formato seleccionado
+            string format = Common.imageFileFormat;
+            if (this.comBoxFileFormat != null && this.comBoxFileFormat.SelectedItem != null)
+            {
+                format = this.comBoxFileFormat.SelectedItem.ToString();
+            }
+            
+            if (format == "PNG")
+            {
+                SaveImageToPNG(rawData, width, height, bitsPerPixel, channels, imageType, frameNumber, filePath);
+                return;
+            }
+            
+            // Por defecto usar FITS
+            SaveImageToFITSInternal(rawData, width, height, bitsPerPixel, channels, imageType, frameNumber, filePath);
+        }
+
+        /// <summary>
+        /// Guarda una imagen en formato FITS con los datos RAW
+        /// </summary>
+        unsafe private void SaveImageToFITSInternal(byte[] rawData, uint width, uint height, 
             uint bitsPerPixel, uint channels, string imageType, uint frameNumber = 0, string filePath = null)
         {
             try
@@ -1347,7 +1393,13 @@ namespace SdkDemo08
                         fileName = string.Format("Live_{0}_{1:D3}.fit", 
                             now.ToString("yyyyMMdd_HHmmss"), frameNumber);
                     }
-                    else // SINGLE o RECORDING
+                    else if (imageType == "RECORDING")
+                    {
+                        folderPath = recordingSessionFolder;
+                        fileName = string.Format("{0}_{1:D4}.fit", 
+                            recordingConfig.DestinationName, frameNumber);
+                    }
+                    else // SINGLE
                     {
                         folderPath = saveFolderPath;
                         
@@ -1463,6 +1515,284 @@ namespace SdkDemo08
             catch (Exception ex)
             {
                 Console.WriteLine("Error al guardar imagen FITS: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Guarda una imagen en formato PNG con ajuste automático y conversión RGB
+        /// </summary>
+        unsafe private void SaveImageToPNG(byte[] rawData, uint width, uint height, 
+            uint bitsPerPixel, uint channels, string imageType, uint frameNumber = 0, string filePath = null)
+        {
+            try
+            {
+                string finalFilePath = filePath;
+                
+                // Si no se proporciona filePath, calcularlo
+                if (string.IsNullOrEmpty(finalFilePath))
+                {
+                    // Verificar que hay una carpeta seleccionada
+                    if (string.IsNullOrEmpty(saveFolderPath))
+                    {
+                        Console.WriteLine("No se ha seleccionado carpeta de guardado.");
+                        return;
+                    }
+
+                    // Determinar el nombre del archivo y la carpeta
+                    string fileName;
+                    string folderPath;
+                    
+                    if (imageType == "LIVE")
+                    {
+                        if (string.IsNullOrEmpty(currentLiveSessionFolder))
+                        {
+                            Console.WriteLine("No hay carpeta de sesión activa para Live mode.");
+                            return;
+                        }
+                        folderPath = currentLiveSessionFolder;
+                        DateTime now = DateTime.UtcNow;
+                        fileName = string.Format("Live_{0}_{1:D3}.png", 
+                            now.ToString("yyyyMMdd_HHmmss"), frameNumber);
+                    }
+                    else if (imageType == "RECORDING")
+                    {
+                        folderPath = recordingSessionFolder;
+                        fileName = string.Format("{0}_{1:D4}.png", 
+                            recordingConfig.DestinationName, frameNumber);
+                    }
+                    else // SINGLE
+                    {
+                        folderPath = saveFolderPath;
+                        
+                        // Si es la primera captura de la sesión, buscar el último número usado
+                        if (singleFrameCounter == 0)
+                        {
+                            singleFrameCounter = GetLastSingleFrameNumber(folderPath);
+                        }
+                        
+                        singleFrameCounter++;
+                        DateTime now = DateTime.UtcNow;
+                        fileName = string.Format("Single_{0}_{1:D4}.png", 
+                            now.ToString("yyyyMMdd_HHmmss"), singleFrameCounter);
+                    }
+
+                    finalFilePath = Path.Combine(folderPath, fileName);
+                }
+
+                // Extraer solo los datos RAW necesarios (sin los 44 bytes de GPS si están presentes)
+                int rawDataSize = (int)(width * height * channels * (bitsPerPixel / 8));
+                byte[] rawImageData = new byte[rawDataSize];
+                
+                // Si hay GPS activo, los primeros 44 bytes son metadata GPS
+                int offset = 0;
+                if (this.btnGPSOnOff != null && this.btnGPSOnOff.Text == "OFF" && rawData.Length > rawDataSize + 44)
+                {
+                    offset = 44;
+                }
+                
+                // Verificar que tenemos suficientes datos
+                if (offset + rawDataSize <= rawData.Length)
+                {
+                    Array.Copy(rawData, offset, rawImageData, 0, rawDataSize);
+                }
+                else
+                {
+                    int availableSize = Math.Min(rawDataSize, rawData.Length - offset);
+                    if (availableSize > 0)
+                    {
+                        Array.Copy(rawData, offset, rawImageData, 0, availableSize);
+                        for (int i = availableSize; i < rawDataSize; i++)
+                        {
+                            rawImageData[i] = 0;
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Advertencia: No hay suficientes datos RAW para la imagen.");
+                        return;
+                    }
+                }
+
+                // Convertir RAW a RGB con ajuste automático
+                Bitmap bitmap = ConvertRawToBitmap(rawImageData, width, height, bitsPerPixel, channels);
+                
+                if (bitmap != null)
+                {
+                    // Guardar como PNG
+                    bitmap.Save(finalFilePath, ImageFormat.Png);
+                    bitmap.Dispose();
+                    Console.WriteLine("Imagen PNG guardada: {0}", finalFilePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error al guardar imagen PNG: {0}", ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Convierte datos RAW a Bitmap RGB con ajuste automático (stretch)
+        /// </summary>
+        private Bitmap ConvertRawToBitmap(byte[] rawData, uint width, uint height, uint bitsPerPixel, uint channels)
+        {
+            try
+            {
+                Bitmap bitmap = new Bitmap((int)width, (int)height, PixelFormat.Format24bppRgb);
+                Rectangle rect = new Rectangle(0, 0, (int)width, (int)height);
+                BitmapData bmpData = bitmap.LockBits(rect, ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
+                
+                IntPtr ptr = bmpData.Scan0;
+                int bytes = Math.Abs(bmpData.Stride) * bitmap.Height;
+                byte[] rgbValues = new byte[bytes];
+                
+                // Encontrar min y max para ajuste automático
+                int min = int.MaxValue;
+                int max = int.MinValue;
+                int pixelCount = (int)(width * height);
+                
+                if (bitsPerPixel == 8)
+                {
+                    if (channels == 1) // Monocromo
+                    {
+                        for (int i = 0; i < pixelCount; i++)
+                        {
+                            int val = rawData[i];
+                            if (val < min) min = val;
+                            if (val > max) max = val;
+                        }
+                        
+                        // Aplicar ajuste automático (stretch)
+                        double scale = (max > min) ? 255.0 / (max - min) : 1.0;
+                        int index = 0;
+                        for (int y = 0; y < height; y++)
+                        {
+                            int rgbIndex = y * bmpData.Stride;
+                            for (int x = 0; x < width; x++)
+                            {
+                                int rawVal = rawData[index++];
+                                int stretched = (int)((rawVal - min) * scale);
+                                if (stretched < 0) stretched = 0;
+                                if (stretched > 255) stretched = 255;
+                                
+                                rgbValues[rgbIndex + x * 3] = (byte)stretched;     // B
+                                rgbValues[rgbIndex + x * 3 + 1] = (byte)stretched; // G
+                                rgbValues[rgbIndex + x * 3 + 2] = (byte)stretched; // R
+                            }
+                        }
+                    }
+                    else if (channels == 3) // Color RGB
+                    {
+                        for (int i = 0; i < pixelCount * 3; i++)
+                        {
+                            int val = rawData[i];
+                            if (val < min) min = val;
+                            if (val > max) max = val;
+                        }
+                        
+                        double scale = (max > min) ? 255.0 / (max - min) : 1.0;
+                        int rawIndex = 0;
+                        for (int y = 0; y < height; y++)
+                        {
+                            int rgbIndex = y * bmpData.Stride;
+                            for (int x = 0; x < width; x++)
+                            {
+                                int r = rawData[rawIndex++];
+                                int g = rawData[rawIndex++];
+                                int b = rawData[rawIndex++];
+                                
+                                int rStretched = (int)((r - min) * scale);
+                                int gStretched = (int)((g - min) * scale);
+                                int bStretched = (int)((b - min) * scale);
+                                
+                                if (rStretched < 0) rStretched = 0; if (rStretched > 255) rStretched = 255;
+                                if (gStretched < 0) gStretched = 0; if (gStretched > 255) gStretched = 255;
+                                if (bStretched < 0) bStretched = 0; if (bStretched > 255) bStretched = 255;
+                                
+                                rgbValues[rgbIndex + x * 3] = (byte)bStretched;     // B
+                                rgbValues[rgbIndex + x * 3 + 1] = (byte)gStretched; // G
+                                rgbValues[rgbIndex + x * 3 + 2] = (byte)rStretched; // R
+                            }
+                        }
+                    }
+                }
+                else if (bitsPerPixel == 16)
+                {
+                    if (channels == 1) // Monocromo 16-bit
+                    {
+                        ushort[] ushortData = new ushort[pixelCount];
+                        for (int i = 0; i < pixelCount; i++)
+                        {
+                            ushortData[i] = (ushort)(rawData[i * 2] | (rawData[i * 2 + 1] << 8));
+                            int val = ushortData[i];
+                            if (val < min) min = val;
+                            if (val > max) max = val;
+                        }
+                        
+                        double scale = (max > min) ? 255.0 / (max - min) : 1.0;
+                        int index = 0;
+                        for (int y = 0; y < height; y++)
+                        {
+                            int rgbIndex = y * bmpData.Stride;
+                            for (int x = 0; x < width; x++)
+                            {
+                                int rawVal = ushortData[index++];
+                                int stretched = (int)((rawVal - min) * scale);
+                                if (stretched < 0) stretched = 0;
+                                if (stretched > 255) stretched = 255;
+                                
+                                rgbValues[rgbIndex + x * 3] = (byte)stretched;     // B
+                                rgbValues[rgbIndex + x * 3 + 1] = (byte)stretched; // G
+                                rgbValues[rgbIndex + x * 3 + 2] = (byte)stretched; // R
+                            }
+                        }
+                    }
+                    else if (channels == 3) // Color RGB 16-bit
+                    {
+                        ushort[] ushortData = new ushort[pixelCount * 3];
+                        for (int i = 0; i < pixelCount * 3; i++)
+                        {
+                            ushortData[i] = (ushort)(rawData[i * 2] | (rawData[i * 2 + 1] << 8));
+                            int val = ushortData[i];
+                            if (val < min) min = val;
+                            if (val > max) max = val;
+                        }
+                        
+                        double scale = (max > min) ? 255.0 / (max - min) : 1.0;
+                        int ushortIndex = 0;
+                        for (int y = 0; y < height; y++)
+                        {
+                            int rgbIndex = y * bmpData.Stride;
+                            for (int x = 0; x < width; x++)
+                            {
+                                int r = ushortData[ushortIndex++];
+                                int g = ushortData[ushortIndex++];
+                                int b = ushortData[ushortIndex++];
+                                
+                                int rStretched = (int)((r - min) * scale);
+                                int gStretched = (int)((g - min) * scale);
+                                int bStretched = (int)((b - min) * scale);
+                                
+                                if (rStretched < 0) rStretched = 0; if (rStretched > 255) rStretched = 255;
+                                if (gStretched < 0) gStretched = 0; if (gStretched > 255) gStretched = 255;
+                                if (bStretched < 0) bStretched = 0; if (bStretched > 255) bStretched = 255;
+                                
+                                rgbValues[rgbIndex + x * 3] = (byte)bStretched;     // B
+                                rgbValues[rgbIndex + x * 3 + 1] = (byte)gStretched; // G
+                                rgbValues[rgbIndex + x * 3 + 2] = (byte)rStretched; // R
+                            }
+                        }
+                    }
+                }
+                
+                Marshal.Copy(rgbValues, 0, ptr, bytes);
+                bitmap.UnlockBits(bmpData);
+                
+                return bitmap;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error al convertir RAW a Bitmap: {0}", ex.Message);
+                return null;
             }
         }
 
@@ -2611,6 +2941,11 @@ namespace SdkDemo08
         /// <returns>El último número de frame encontrado, o 0 si no hay archivos</returns>
         private uint GetLastSingleFrameNumber(string folderPath)
         {
+            return GetLastSingleFrameNumber(folderPath, Common.imageFileFormat);
+        }
+
+        private uint GetLastSingleFrameNumber(string folderPath, string format)
+        {
             if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))
             {
                 return 0;
@@ -2618,8 +2953,9 @@ namespace SdkDemo08
 
             try
             {
-                // Buscar todos los archivos Single_*.fit en la carpeta
-                string[] files = Directory.GetFiles(folderPath, "Single_*.fit");
+                // Buscar archivos según el formato seleccionado
+                string extension = format == "PNG" ? "*.png" : "*.fit";
+                string[] files = Directory.GetFiles(folderPath, "Single_*" + extension.Replace("*", ""));
                 uint maxNumber = 0;
 
                 foreach (string file in files)
@@ -3144,6 +3480,15 @@ namespace SdkDemo08
         /****************************************************************************/
         /******************************** Bits Mode *********************************/
         /****************************************************************************/
+        private void comBoxFileFormat_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (this.comBoxFileFormat.SelectedItem != null)
+            {
+                Common.imageFileFormat = this.comBoxFileFormat.SelectedItem.ToString();
+                Console.WriteLine("Formato de archivo seleccionado: {0}", Common.imageFileFormat);
+            }
+        }
+
         private void comBoxBits_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (isSetupUI == false)
